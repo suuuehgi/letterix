@@ -30,9 +30,6 @@ char_section='%'
 char_comment='#'
 
 path_config = Path("~/.config/letterix.conf").expanduser()
-#config = configparser.ConfigParser()
-#config.sections()
-#config.read(path_config)
 
 content = {
     'CONTENT':  ( [], False ),
@@ -65,6 +62,21 @@ parser.add_argument(
           action='count',
           default=0,
           help='Increase verbosity'
+          )
+
+# TODO: Requires --generate
+parser.add_argument(
+          '-ri', '--readin',
+          type=str,
+          default=False,
+          help='Read entry from config'
+          )
+
+parser.add_argument(
+          '-wo', '--writeout',
+          type=str,
+          default=False,
+          help='Read infile and write / store it in config'
           )
 
 parser.add_argument(
@@ -139,18 +151,42 @@ def is_header_or_flag(line):
   if is_header(line) is True or is_flag(line) is True: return True
   else: return False
 
+def verbose( message, verbosity=1, args=p ):
+  '''
+  Print "message" if "verbosity" <= verbosity level
+  '''
+  if args.verbose >= verbosity and message != '':
+    print(message)
 
 ##### Generate example file to stdout #####
 if p.generate is True:
 
+  if p.readin is not False:
+    config = configparser.ConfigParser()
+    if path_config.exists(): config.read(path_config)
+    else:
+      raise ValueError("Config not found ({})!".format(path_config))
+
+    section = dict( config[p.readin] )
+    section = {k.upper(): v for k, v in section.items()}
+
+    for key in section:
+      for elem in section[key].split(';;'):
+        content[key][0].append(elem)
+
   print(char_comment, 'This is a comment.')
   for key in content:
-    print(char_section, key, '\n')
+    print(char_section, key)
+    if (entries := content[key][0]) != []:
+      print( "\n".join(entries) )
+    print()
+
+  print( char_comment, "Flags" )
   for key in flags:
-    print(char_flag, key, '\n')
+    # TODO: Print flags for --readin
+    print(char_comment, char_flag, key, '\n')
 
   sys.exit(0)
-
 
 ##### Parse infile #####
 if p.infile:
@@ -163,6 +199,30 @@ if p.infile:
           curr_section = line[1:].strip()
       else:
         content[curr_section][0].append(line)
+
+  ##### Write parsed content to config file #####
+  if p.writeout is not False:
+    config = configparser.ConfigParser()
+    if path_config.exists(): config.read(path_config)
+    else:
+      verbose( 'No config file found. Creating new one: {}'.format(path_config) )
+      #raise ValueError("Config not found ({})".format(path_config))
+
+    name = p.writeout.strip()
+    config[name] = {}
+
+    for key in content:
+      if (value := content[key][0]) != []:
+        config[name][key] = ";;".join(value)
+
+    for key in flags:
+      if flags[key] is True:
+        config[name] = True
+
+    with path_config.open('w') as configfile:
+      config.write(configfile)
+
+    sys.exit(0)
 
   ##### Fill source code with keys or defaults #####
   for key in content:
