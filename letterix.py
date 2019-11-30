@@ -9,7 +9,7 @@ import tempfile
 import shutil
 from subprocess import Popen, PIPE, STDOUT, run
 
-latex_source = r'''\documentclass[foldmarks=true,foldmarks=H,
+latex_source = r'''\documentclass[foldmarks=<NOFOLDMARKS>,foldmarks=H,
          version=last%
          ]{scrlttr2}
 \usepackage[<LANGUAGE>]{babel}
@@ -54,7 +54,7 @@ content = {
 
 # Default is always False
 flags = {
-  'REFERENCES_RIGHT': False
+  'NOFOLDMARKS': False
 }
 
 parser = argparse.ArgumentParser()
@@ -101,7 +101,7 @@ parser.add_argument(
           default=False,
           nargs='?',
           type=str,
-          help='Generate letter config [from config key]'
+          help='Generate infile from config. Leave empty for all possibilities.'
           )
 
 parser.add_argument(
@@ -213,8 +213,16 @@ if p.generate is not False:
 
     # Split up multiline values via config_lineseparator
     for key in [k for k in section_config if not k == "DEFAULT"]:
+
       for elem in section_config[key].split(config_lineseparator):
-        content[key].content.append(elem)
+
+        if key in content:
+          content[key].content.append(elem)
+
+        # Actual value of a flag in config file is irrelevant
+        # E.g. flagx=blabla will result in True
+        elif key in flags:
+          flags[key] = True
 
   # Example comment
   print(char_comment, 'This is a comment.')
@@ -286,7 +294,7 @@ if p.infile:
     name = p.configout.strip()
 
     if name in config:
-      raise RuntimeError("Key \"{}\" is already in \"{}\". Choose different key or take it out manually.".format(
+      raise RuntimeError("Key \"{}\" is already in \"{}\". Choose different key or remove first using --configdelete".format(
         name, config.path))
 
     else:
@@ -297,9 +305,9 @@ if p.infile:
         if (value := content[key].content) != []:
           config[name][key] = config_lineseparator.join(value)
 
-      for key in flags:
-        if flags[key] is True:
-          config[name] = True
+      for flag in flags:
+        if flags[flag] is True:
+          config[name][flag] = 'True'
 
       verbose( 'Writing content of \"{}\" using key \"{}\" to \"{}\".'.format(p.infile, p.configout, path_config) )
       config.writeout()
@@ -308,17 +316,24 @@ if p.infile:
 
   ##### Fill source code with keys or defaults #####
   for key in content:
-    # Read from input file
+
+    # Take from infile
     if content[key].content != []:
       latex_source = latex_source.replace( '<{}>'.format(key), r'\\'.join(content[key].content) )
 
-    # Not present in input file, read language specific default
+    # Not present in infile, read language specific default
     else:
       if key == 'LANGUAGE':
         latex_source = latex_source.replace( '<{}>'.format(key), r'\\'.join(content[key].default) )
       else:
         if content[key].default is not False:
           latex_source = latex_source.replace( '<{}>'.format(key), r'\\'.join(content[key].default[content['LANGUAGE']]) )
+
+  # TODO: Add flags; flags with default value? Entry?
+  #for flag, value in {f:v for f,v in flags.items() if v != False}.item():
+  #  if value == 'NOFOLDMARKS':
+
+
 
   ##### Write source to file and compile  #####
 
