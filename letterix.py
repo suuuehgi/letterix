@@ -28,6 +28,7 @@ latex_source = r'''\documentclass[foldmarks=true,foldmarks=H,
 char_flag='!'
 char_section='%'
 char_comment='#'
+config_lineseparator = ";;"
 
 path_config = Path("~/.config/letterix.conf").expanduser()
 
@@ -44,6 +45,7 @@ content = {
     'LANGUAGE': ( [], 'ngerman' )
     }
 
+# Default is always False
 flags = {
   'REFERENCES_RIGHT': False
 }
@@ -65,18 +67,34 @@ parser.add_argument(
           )
 
 # TODO: Requires --generate
-parser.add_argument(
-          '-ri', '--readin',
-          type=str,
-          default=False,
-          help='Read entry from config'
-          )
+megroup = parser.add_mutually_exclusive_group()
 
-parser.add_argument(
-          '-wo', '--writeout',
-          type=str,
+megroup.add_argument(
+           '-ci', '--configin',
+           type=str,
+           default=False,
+           help='Read entry from config'
+           )
+
+megroup.add_argument(
+           '-co', '--configout',
+           type=str,
+           default=False,
+           help='Read infile and write everything as given str in {}'.format(path_config)
+           )
+
+megroup.add_argument(
+           '-cd', '--configdelete',
+           type=str,
+           default=False,
+           help='Delete key from config \"{}\".'.format(path_config)
+           )
+
+megroup.add_argument(
+          '-cp', '--configprint',
           default=False,
-          help='Read infile and write / store it in config'
+          action="store_true",
+          help='Print config'
           )
 
 parser.add_argument(
@@ -152,33 +170,60 @@ def is_header_or_flag(line):
   else: return False
 
 def verbose( message, verbosity=1, args=p ):
-  '''
-  Print "message" if "verbosity" <= verbosity level
-  '''
+  '''Print "message" if "verbosity" <= verbosity level  '''
   if args.verbose >= verbosity and message != '':
     print(message)
+
+
+class configuration(configparser.ConfigParser):
+  """ConfigParser meta class with add. features for ease of reading"""
+
+  def verbose( self, message, verbosity_thresh=1, verbosity_curr=p.verbose ):
+    '''Print "message" if "verbosity" <= verbosity level  '''
+    if verbosity_curr >= verbosity_thresh and message != '':
+      print(message)
+
+  def writeout(self):
+    with self.path.open('w') as f:
+      self.write(f)
+
+  def readin( self, path = path_config ):
+    """path: pathlib.Path object"""
+    self.path = path
+    if self.path.exists(): self.read(self.path)
+    else: self.verbose( 'No config file found. Creating new one: {}'.format(
+      self.path) )
+
 
 ##### Generate example file to stdout #####
 if p.generate is True:
 
-  if p.readin is not False:
-    config = configparser.ConfigParser()
-    if path_config.exists(): config.read(path_config)
-    else:
-      raise ValueError("Config not found ({})!".format(path_config))
+  if p.configin is not False:
 
-    section = dict( config[p.readin] )
+    # Read configuration file
+    config = configuration()
+    config.readin(path_config)
+
+    # Grep desired section p.configin
+    section = dict( config[p.configin] )
     section = {k.upper(): v for k, v in section.items()}
 
+    # Split up multiline values via config_lineseparator
     for key in section:
-      for elem in section[key].split(';;'):
+      for elem in section[key].split(config_lineseparator):
         content[key][0].append(elem)
 
+  # Example comment
   print(char_comment, 'This is a comment.')
   for key in content:
+
+    # Print header
     print(char_section, key)
+
+    # Had been defined in config
     if (entries := content[key][0]) != []:
       print( "\n".join(entries) )
+
     print()
 
   print( char_comment, "Flags" )
@@ -188,41 +233,72 @@ if p.generate is True:
 
   sys.exit(0)
 
-##### Parse infile #####
+##### Print config #####
+if p.configprint is True:
+  print(path_config.read_text())
+  sys.exit(0)
+
+##### Remove section from config #####
+if p.configdelete is not False:
+
+  config = configuration()
+  config.readin(path_config)
+
+  if p.configdelete in config:
+    config.remove_section(p.configdelete)
+    config.writeout()
+  else:
+    print("Couldn't find \"{}\" in config \"{}\"".format(
+      p.configdelete, config.path))
+
+  sys.exit(0)
+
 if p.infile:
+
+  ##### Parse infile #####
   with p.infile.open() as f:
+
     while (line := next_line(f)):
+
       if is_header_or_flag(line) is True:
+
         if is_flag(line) is True:
           flags[line[1:].strip()] = True
+
         elif is_header(line) is True:
           curr_section = line[1:].strip()
+
       else:
         content[curr_section][0].append(line)
 
   ##### Write parsed content to config file #####
-  if p.writeout is not False:
-    config = configparser.ConfigParser()
-    if path_config.exists(): config.read(path_config)
+  if p.configout is not False:
+
+    config = configuration()
+    config.readin(path_config)
+
+    name = p.configout.strip()
+
+    if name in config:
+      raise RuntimeError("Key \"{}\" is already in \"{}\". Choose different key or take it out manually.".format(
+        name, config.path))
+
     else:
-      verbose( 'No config file found. Creating new one: {}'.format(path_config) )
-      #raise ValueError("Config not found ({})".format(path_config))
 
-    name = p.writeout.strip()
-    config[name] = {}
+      config[name] = {}
 
-    for key in content:
-      if (value := content[key][0]) != []:
-        config[name][key] = ";;".join(value)
+      # Everything that was specified in infile
+      for key in content:
+        if (value := content[key][0]) != []:
+          config[name][key] = config_lineseparator.join(value)
 
-    for key in flags:
-      if flags[key] is True:
-        config[name] = True
+      for key in flags:
+        if flags[key] is True:
+          config[name] = True
 
-    with path_config.open('w') as configfile:
-      config.write(configfile)
-
-    sys.exit(0)
+      verbose( 'Writing content of \"{}\" using key \"{}\" to \"{}\".'.format(p.infile, p.configout, path_config) )
+      config.writeout()
+      sys.exit(0)
 
   ##### Fill source code with keys or defaults #####
   for key in content:
