@@ -32,17 +32,24 @@ config_lineseparator = ";;"
 
 path_config = Path("~/.config/letterix.conf").expanduser()
 
+class Entry:
+  def __init__(self, content=None, default=None):
+    self.default = False
+    self.content = []
+    if content is not None: self.content = content
+    if default is not None: self.default = default
+
 content = {
-    'CONTENT':  ( [], False ),
-    'RECIPIENT':( [], False ),
-    'SENDER':   ( [], False ),
-    'SUBJECT':  ( [], False ),
-    'OPENING':  ( [], {'ngerman': r'Sehr geehrte Damen und Herren,'} ),
-    'CLOSING':  ( [], {'ngerman': r'Mit freundlichen Gr\"u\ss{}en'} ),
-    'ENCL':     ( [], False ),
-    'PS':       ( [], False ),
-    'CC':       ( [], False ),
-    'LANGUAGE': ( [], 'ngerman' )
+    'CONTENT':  Entry(),
+    'RECIPIENT':Entry(),
+    'SENDER':   Entry(),
+    'SUBJECT':  Entry(),
+    'OPENING':  Entry( default={'ngerman': r'Sehr geehrte Damen und Herren,'} ),
+    'CLOSING':  Entry( default={'ngerman': r'Mit freundlichen Gr\"u\ss{}en'} ),
+    'ENCL':     Entry(),
+    'PS':       Entry(),
+    'CC':       Entry(),
+    'LANGUAGE': Entry( default='ngerman' )
     }
 
 # Default is always False
@@ -66,15 +73,7 @@ parser.add_argument(
           help='Increase verbosity'
           )
 
-# TODO: Requires --generate
 megroup = parser.add_mutually_exclusive_group()
-
-megroup.add_argument(
-           '-ci', '--configin',
-           type=str,
-           default=False,
-           help='Read entry from config'
-           )
 
 megroup.add_argument(
            '-co', '--configout',
@@ -100,8 +99,9 @@ megroup.add_argument(
 parser.add_argument(
           '-G', '--generate',
           default=False,
-          action="store_true",
-          help='Print empty letter config'
+          nargs='?',
+          type=str,
+          help='Generate letter config [from config key]'
           )
 
 parser.add_argument(
@@ -177,6 +177,9 @@ def verbose( message, verbosity=1, args=p ):
 
 class configuration(configparser.ConfigParser):
   """ConfigParser meta class with add. features for ease of reading"""
+  def __init__(self, path=None):
+    super().__init__(self)
+    if path is not None: self.readin(path)
 
   def verbose( self, message, verbosity_thresh=1, verbosity_curr=p.verbose ):
     '''Print "message" if "verbosity" <= verbosity level  '''
@@ -196,22 +199,22 @@ class configuration(configparser.ConfigParser):
 
 
 ##### Generate example file to stdout #####
-if p.generate is True:
+if p.generate is not False:
 
-  if p.configin is not False:
+  # Read from config
+  if p.generate is not None:
 
     # Read configuration file
-    config = configuration()
-    config.readin(path_config)
+    config = configuration(path_config)
 
-    # Grep desired section p.configin
-    section = dict( config[p.configin] )
-    section = {k.upper(): v for k, v in section.items()}
+    # Grep desired section p.generate
+    section_config = dict( config[p.generate] )
+    section_config = {k.upper(): v for k, v in section_config.items()}
 
     # Split up multiline values via config_lineseparator
-    for key in section:
-      for elem in section[key].split(config_lineseparator):
-        content[key][0].append(elem)
+    for key in [k for k in section_config if not k == "DEFAULT"]:
+      for elem in section_config[key].split(config_lineseparator):
+        content[key].content.append(elem)
 
   # Example comment
   print(char_comment, 'This is a comment.')
@@ -221,28 +224,31 @@ if p.generate is True:
     print(char_section, key)
 
     # Had been defined in config
-    if (entries := content[key][0]) != []:
+    if (entries := content[key].content) != []:
       print( "\n".join(entries) )
 
     print()
 
   print( char_comment, "Flags" )
-  for key in flags:
-    # TODO: Print flags for --readin
-    print(char_comment, char_flag, key, '\n')
+  for flag in flags:
+    if flags[flag] is True:
+      print(char_flag, flag, '\n')
+    else:
+      print(char_comment, char_flag, flag, '\n')
 
   sys.exit(0)
+###########################################
 
 ##### Print config #####
 if p.configprint is True:
   print(path_config.read_text())
   sys.exit(0)
+########################
 
 ##### Remove section from config #####
 if p.configdelete is not False:
 
-  config = configuration()
-  config.readin(path_config)
+  config = configuration(path_config)
 
   if p.configdelete in config:
     config.remove_section(p.configdelete)
@@ -252,6 +258,7 @@ if p.configdelete is not False:
       p.configdelete, config.path))
 
   sys.exit(0)
+######################################
 
 if p.infile:
 
@@ -269,14 +276,13 @@ if p.infile:
           curr_section = line[1:].strip()
 
       else:
-        content[curr_section][0].append(line)
+        content[curr_section].content.append(line)
+  ########################
 
   ##### Write parsed content to config file #####
   if p.configout is not False:
 
-    config = configuration()
-    config.readin(path_config)
-
+    config = configuration(path_config)
     name = p.configout.strip()
 
     if name in config:
@@ -284,12 +290,11 @@ if p.infile:
         name, config.path))
 
     else:
-
       config[name] = {}
 
-      # Everything that was specified in infile
       for key in content:
-        if (value := content[key][0]) != []:
+        # Everything that was specified in infile
+        if (value := content[key].content) != []:
           config[name][key] = config_lineseparator.join(value)
 
       for key in flags:
@@ -299,20 +304,21 @@ if p.infile:
       verbose( 'Writing content of \"{}\" using key \"{}\" to \"{}\".'.format(p.infile, p.configout, path_config) )
       config.writeout()
       sys.exit(0)
+  ###############################################
 
   ##### Fill source code with keys or defaults #####
   for key in content:
     # Read from input file
-    if content[key][0] != []:
-      latex_source = latex_source.replace( '<{}>'.format(key), r'\\'.join(content[key][0]) )
+    if content[key].content != []:
+      latex_source = latex_source.replace( '<{}>'.format(key), r'\\'.join(content[key].content) )
 
     # Not present in input file, read language specific default
     else:
       if key == 'LANGUAGE':
-        latex_source = latex_source.replace( '<{}>'.format(key), r'\\'.join(content[key][1]) )
+        latex_source = latex_source.replace( '<{}>'.format(key), r'\\'.join(content[key].default) )
       else:
-        if content[key][1] is not False:
-          latex_source = latex_source.replace( '<{}>'.format(key), r'\\'.join(content[key][1][content['LANGUAGE']]) )
+        if content[key].default is not False:
+          latex_source = latex_source.replace( '<{}>'.format(key), r'\\'.join(content[key].default[content['LANGUAGE']]) )
 
   ##### Write source to file and compile  #####
 
