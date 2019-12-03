@@ -311,6 +311,83 @@ def verbose( message, verbosity=1, args=p ):
   if args.verbose >= verbosity and message != '':
     print(message)
 
+def delete_from_config( config, section ):
+  config = configuration(config)
+
+  if section in config:
+    config.remove_section(section)
+    config.writeout()
+    verbose( 'Removed \"{}\" from config \"{}\".'.format(p.configdelete, path_config) )
+  else:
+    print("Couldn't find \"{}\" in config \"{}\"".format(
+      section, config.path))
+
+def generate_stdout(config, section, content=content, flags=flags, verbosity=p.verbose):
+  """
+  If section != None, read config file "config" and extract section "section" to content and flags
+  config:       pathlib.Path object
+  section:      str or None
+  content:      {'key': class Entry}
+  flags:        {'key': class Entry}
+  verbosity:    int
+  """
+
+  def readin_config(config, section, content=content, flags=flags):
+    """
+    Open config file "config" with configparser, extract section "section" and save it to content and flags.
+
+    config:       pathlib.Path object
+    section:      str or None
+    content:      {'key': class Entry}
+    flags:        {'key': class Entry}
+    """
+    # Read configuration file
+    config = configuration(config)
+
+    # Grep desired section section
+    section_config = dict( config[section] )
+    section_config = {k.upper(): v for k, v in section_config.items()}
+
+    # Split up multiline values via config_lineseparator
+    for key in [k for k in section_config if not k == "DEFAULT"]:
+
+      for elem in section_config[key].split(config_lineseparator):
+
+        if key in content:
+          content[key].content.append(elem)
+
+        # Actual value of a flag in config file is irrelevant
+        # E.g. flagx=blabla will result in True
+        elif key in flags:
+          flags[key].content = True
+
+    return content, flags
+
+  # Read from config
+  if section is not None:
+    verbose("Reading \"{}\" from config \"{}\"".format( section, config ))
+    content, flags = readin_config(config, section, content, flags)
+
+  # Example comment
+  print(char_comment, 'This is a comment.')
+  for key in content:
+
+    # Print header
+    print(char_section, key)
+
+    # Had been defined in config
+    if (entries := content[key].content) != []:
+      print( "\n".join(entries) )
+
+    print()
+
+  print( char_comment, "Flags" )
+  for flag in flags:
+    if flags[flag].content is True:
+      print(char_flag, flag, '\n')
+    else:
+      print(char_comment, char_flag, flag, '\n')
+
 
 class configuration(configparser.ConfigParser):
   """ConfigParser meta class with add. features for ease of reading"""
@@ -336,52 +413,11 @@ class configuration(configparser.ConfigParser):
 
 
 ##### Generate example file to stdout #####
+
 if p.generate is not False:
-
-  # Read from config
-  if p.generate is not None:
-
-    # Read configuration file
-    config = configuration(path_config)
-
-    # Grep desired section p.generate
-    section_config = dict( config[p.generate] )
-    section_config = {k.upper(): v for k, v in section_config.items()}
-
-    # Split up multiline values via config_lineseparator
-    for key in [k for k in section_config if not k == "DEFAULT"]:
-
-      for elem in section_config[key].split(config_lineseparator):
-
-        if key in content:
-          content[key].content.append(elem)
-
-        # Actual value of a flag in config file is irrelevant
-        # E.g. flagx=blabla will result in True
-        elif key in flags:
-          flags[key].content = True
-
-  # Example comment
-  print(char_comment, 'This is a comment.')
-  for key in content:
-
-    # Print header
-    print(char_section, key)
-
-    # Had been defined in config
-    if (entries := content[key].content) != []:
-      print( "\n".join(entries) )
-
-    print()
-
-  print( char_comment, "Flags" )
-  for flag in flags:
-    if flags[flag].content is True:
-      print(char_flag, flag, '\n')
-    else:
-      print(char_comment, char_flag, flag, '\n')
-
+  generate_stdout(path_config, p.generate, content, flags)
   sys.exit(0)
+
 ###########################################
 
 ##### Print config #####
@@ -391,19 +427,11 @@ if p.configprint is True:
 ########################
 
 ##### Remove section from config #####
+
 if p.configdelete is not False:
-
-  config = configuration(path_config)
-
-  if p.configdelete in config:
-    config.remove_section(p.configdelete)
-    config.writeout()
-    verbose( 'Removed \"{}\" from config \"{}\".'.format(p.configdelete, path_config) )
-  else:
-    print("Couldn't find \"{}\" in config \"{}\"".format(
-      p.configdelete, config.path))
-
+  delete_from_config(path_config, p.configdelete)
   sys.exit(0)
+
 ######################################
 
 if p.infile:
