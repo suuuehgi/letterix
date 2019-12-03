@@ -54,7 +54,7 @@ content = {
 
 # Default is always False
 flags = {
-  'NOFOLDMARKS': False
+  'NOFOLDMARKS': Entry( False, default={True:"false", False:"true"})
 }
 
 parser = argparse.ArgumentParser()
@@ -222,7 +222,7 @@ if p.generate is not False:
         # Actual value of a flag in config file is irrelevant
         # E.g. flagx=blabla will result in True
         elif key in flags:
-          flags[key] = True
+          flags[key].content = True
 
   # Example comment
   print(char_comment, 'This is a comment.')
@@ -239,7 +239,7 @@ if p.generate is not False:
 
   print( char_comment, "Flags" )
   for flag in flags:
-    if flags[flag] is True:
+    if flags[flag].content is True:
       print(char_flag, flag, '\n')
     else:
       print(char_comment, char_flag, flag, '\n')
@@ -261,6 +261,7 @@ if p.configdelete is not False:
   if p.configdelete in config:
     config.remove_section(p.configdelete)
     config.writeout()
+    verbose( 'Removed \"{}\" from config \"{}\".'.format(p.configdelete, path_config) )
   else:
     print("Couldn't find \"{}\" in config \"{}\"".format(
       p.configdelete, config.path))
@@ -277,12 +278,15 @@ if p.infile:
 
       if is_header_or_flag(line) is True:
 
+        # Set flag
         if is_flag(line) is True:
-          flags[line[1:].strip()] = True
+          flags[line[1:].strip()].content = True
 
+        # Save current active section for below lines ...
         elif is_header(line) is True:
           curr_section = line[1:].strip()
 
+      # ... that is here.
       else:
         content[curr_section].content.append(line)
   ########################
@@ -306,7 +310,7 @@ if p.infile:
           config[name][key] = config_lineseparator.join(value)
 
       for flag in flags:
-        if flags[flag] is True:
+        if flags[flag].content is True:
           config[name][flag] = 'True'
 
       verbose( 'Writing content of \"{}\" using key \"{}\" to \"{}\".'.format(p.infile, p.configout, path_config) )
@@ -329,9 +333,8 @@ if p.infile:
         if content[key].default is not False:
           latex_source = latex_source.replace( '<{}>'.format(key), r'\\'.join(content[key].default[content['LANGUAGE']]) )
 
-  # TODO: Add flags; flags with default value? Entry?
-  #for flag, value in {f:v for f,v in flags.items() if v != False}.item():
-  #  if value == 'NOFOLDMARKS':
+  for flag, value in flags.items():
+    latex_source = latex_source.replace( '<{}>'.format(flag), r'{}'.format(value.default[value.content]) )
 
 
 
