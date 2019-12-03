@@ -125,37 +125,6 @@ parser.add_argument(
 
 p = parser.parse_args()
 
-def query_yes_no(question, default="yes"):
-  """Ask a yes/no question via input() and return their answer.
-
-  question: str: presented to the user
-  default:  str: presumed answer if the user just hits <Enter>
-
-  return: True for "yes", "y", "ye"
-          False for "no", "n"
-  """
-  valid = {"yes": True, "y": True, "ye": True,
-           "no": False, "n": False}
-  if default is None:
-    prompt = " [y/n] "
-  elif default == "yes":
-    prompt = " [Y/n] "
-  elif default == "no":
-    prompt = " [y/N] "
-  else:
-    raise ValueError("invalid default answer: '%s'" % default)
-
-  while True:
-    sys.stdout.write(question + prompt)
-    choice = input().lower()
-    if default is not None and choice == '':
-      return valid[default]
-    elif choice in valid:
-      return valid[choice]
-    else:
-      sys.stdout.write("Please respond with 'yes' or 'no' "
-                       "(or 'y' or 'n').\n")
-
 def next_line(file):
   '''Return next relevant line from file (skip comments)'''
   line = file.readline()
@@ -208,6 +177,134 @@ def parse_infile(infile, content, flags):
         content[curr_section].content.append(line)
 
   return content, flags
+
+def write_to_config(name, config=path_config, content=content, flags=flags):
+  """
+  name:     str for section in config
+  config:   pathlib.Path object
+  content:  {'key': class Entry}
+  flags:    {'key': class Entry}
+  """
+
+  # Read in config
+  config = configuration(config)
+
+  if name in config:
+    raise RuntimeError("Key \"{}\" is already in \"{}\". Choose different key or remove first using --configdelete".format(
+      name, config.path))
+
+  else:
+    config[name] = {}
+
+    for key in content:
+      # Everything that was specified in infile
+      if (value := content[key].content) != []:
+        config[name][key] = config_lineseparator.join(value)
+
+    for flag in flags:
+      if flags[flag].content is True:
+        config[name][flag] = 'True'
+
+    verbose( 'Writing content of \"{}\" using key \"{}\" to \"{}\".'.format(p.infile, p.configout, path_config) )
+    config.writeout()
+
+def fill_source(source=latex_source, content=content, flags=flags):
+  """
+  source: docstring
+  content: {'key': class Entry}
+  flags: {'key': class Entry}
+  """
+  for key in content:
+
+    # Take from infile
+    if content[key].content != []:
+      source = source.replace( '<{}>'.format(key), r'\\'.join(content[key].content) )
+
+    # Not present in infile, read language specific default
+    else:
+      if key == 'LANGUAGE':
+        source = source.replace( '<{}>'.format(key), r'\\'.join(content[key].default) )
+      else:
+        if content[key].default is not False:
+          source = source.replace( '<{}>'.format(key), r'\\'.join(content[key].default[content['LANGUAGE']]) )
+
+  for flag, value in flags.items():
+    source = source.replace( '<{}>'.format(flag), r'{}'.format(value.default[value.content]) )
+
+  return source
+
+def compile(source, file_out, overwrite=p.overwrite):
+  """
+  Compiles the latex source "source" in a temp folder and copies the resulting pdf to "file_out".
+
+  source:   docstring
+  file_out: pathlib.Path object
+  overwrite:Bool
+  """
+  def query_yes_no(question, default="yes"):
+    """Ask a yes/no question via input() and return their answer.
+
+    question: str: presented to the user
+    default:  str: presumed answer if the user just hits <Enter>
+
+    return: True for "yes", "y", "ye"
+            False for "no", "n"
+    """
+    valid = {"yes": True, "y": True, "ye": True,
+             "no": False, "n": False}
+    if default is None:
+      prompt = " [y/n] "
+    elif default == "yes":
+      prompt = " [Y/n] "
+    elif default == "no":
+      prompt = " [y/N] "
+    else:
+      raise ValueError("invalid default answer: '%s'" % default)
+
+    while True:
+      sys.stdout.write(question + prompt)
+      choice = input().lower()
+      if default is not None and choice == '':
+        return valid[default]
+      elif choice in valid:
+        return valid[choice]
+      else:
+        sys.stdout.write("Please respond with 'yes' or 'no' "
+                         "(or 'y' or 'n').\n")
+
+  # Create secure tmp folder for compilation
+  with tempfile.TemporaryDirectory() as tmpdir:
+
+    # Write to source file
+    with Path(tmpdir).joinpath('source.tex').open('w') as file_source:
+      file_source.writelines(source)
+
+    # Compile
+    log = Popen([
+        'pdflatex',
+        '-output-directory', tmpdir,
+        '-interaction', 'nonstopmode',
+        '-halt-on-error',
+        '-shell-escape',
+        '-file-line-error',
+        file_source.name],
+        stderr=STDOUT,stdout=PIPE)
+    log.wait()
+    result = log.returncode, log.communicate()[0].decode('cp1252').encode('utf-8')
+
+    # Compilation failed
+    if result[0] > 0:
+      print(result[1])
+      print('Compilation failed with exit code {}!'.format(result[0]))
+      sys.exit(1)
+
+    if file_out.exists():
+      if p.overwrite is True or query_yes_no('{} already exists! Overwrite?'.format(file_out), default='yes') is True:
+        pass
+      else:
+        sys.exit(0)
+
+    shutil.copy(Path(tmpdir).joinpath('source.pdf'),file_out)
 
 def verbose( message, verbosity=1, args=p ):
   '''Print "message" if "verbosity" <= verbosity level  '''
@@ -312,89 +409,24 @@ if p.configdelete is not False:
 if p.infile:
 
   ##### Parse infile #####
+
   content, flags = parse_infile( p.infile, content, flags )
+
   ########################
 
   ##### Write parsed content to config file #####
+
   if p.configout is not False:
-
-    config = configuration(path_config)
-    name = p.configout.strip()
-
-    if name in config:
-      raise RuntimeError("Key \"{}\" is already in \"{}\". Choose different key or remove first using --configdelete".format(
-        name, config.path))
-
-    else:
-      config[name] = {}
-
-      for key in content:
-        # Everything that was specified in infile
-        if (value := content[key].content) != []:
-          config[name][key] = config_lineseparator.join(value)
-
-      for flag in flags:
-        if flags[flag].content is True:
-          config[name][flag] = 'True'
-
-      verbose( 'Writing content of \"{}\" using key \"{}\" to \"{}\".'.format(p.infile, p.configout, path_config) )
-      config.writeout()
+      write_to_config( p.configout.strip() )
       sys.exit(0)
+
   ###############################################
 
   ##### Fill source code with keys or defaults #####
-  for key in content:
 
-    # Take from infile
-    if content[key].content != []:
-      latex_source = latex_source.replace( '<{}>'.format(key), r'\\'.join(content[key].content) )
-
-    # Not present in infile, read language specific default
-    else:
-      if key == 'LANGUAGE':
-        latex_source = latex_source.replace( '<{}>'.format(key), r'\\'.join(content[key].default) )
-      else:
-        if content[key].default is not False:
-          latex_source = latex_source.replace( '<{}>'.format(key), r'\\'.join(content[key].default[content['LANGUAGE']]) )
-
-  for flag, value in flags.items():
-    latex_source = latex_source.replace( '<{}>'.format(flag), r'{}'.format(value.default[value.content]) )
-
-
+  latex_source = fill_source(latex_source)
 
   ##### Write source to file and compile  #####
 
-  # Create secure tmp folder for compilation
-  with tempfile.TemporaryDirectory() as tmpdir:
-    # Write to source file
-    with Path(tmpdir).joinpath('source.tex').open('w') as file_source:
-      file_source.writelines(latex_source)
-
-    # Compile
-    log = Popen([
-        'pdflatex',
-        '-output-directory', tmpdir,
-        '-interaction', 'nonstopmode',
-        '-halt-on-error',
-        '-shell-escape',
-        '-file-line-error',
-        file_source.name],
-        stderr=STDOUT,stdout=PIPE)
-    log.wait()
-    result = log.returncode, log.communicate()[0].decode('cp1252').encode('utf-8')
-
-    # Compilation failed
-    if result[0] > 0:
-      print(result[1])
-      print('Compilation failed with exit code {}!'.format(result[0]))
-      sys.exit(1)
-
-    file_out = Path().cwd().joinpath( '{}.pdf'.format(p.infile.stem) )
-
-    if file_out.exists():
-      if p.overwrite is True or query_yes_no('{} already exists! Overwrite?'.format(file_out), default='yes') is True:
-        pass
-      else:
-        sys.exit(0)
-
-    shutil.copy(Path(tmpdir).joinpath('source.pdf'),file_out)
+  file_out = Path().cwd().joinpath( '{}.pdf'.format(p.infile.stem) )
+  compile( latex_source, file_out, p.overwrite )
