@@ -1,6 +1,7 @@
 #!/usr/bin/python3.8
 #encoding=utf8
 
+# TODO: References
 import argparse
 import configparser
 import sys
@@ -10,7 +11,7 @@ import shutil
 from subprocess import Popen, PIPE, STDOUT, run
 
 latex_source = r'''\documentclass[%
-        backaddress=on,%%         backaddress within window
+        backaddress=<NOBACKADDRESS>,%%         backaddress within window
         foldmarks=<NOFOLDMARKS>,%
         foldmarks=H,%
         %fromrule=on,%
@@ -69,7 +70,8 @@ content = {
 
 # Default is always False
 flags = {
-  'NOFOLDMARKS': Entry( False, default={True:"false", False:"true"})
+  'NOFOLDMARKS':   Entry(False, default={True:"false", False:"true"}),
+  'NOBACKADDRESS': Entry(False, default={True:"off", False:"on"})
 }
 
 parser = argparse.ArgumentParser()
