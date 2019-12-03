@@ -141,7 +141,7 @@ def next_line(file):
     else: line = line.strip()
   return line
 
-def fill_defaults_that_require_content(content=content, flags=flags):
+def derive_defaults_that_require_content(content=content, flags=flags):
   """
   Fill in specific language independent defaults that are dependent on the content
   """
@@ -471,8 +471,8 @@ if p.infile:
 
   ##### Fill source code with keys or defaults #####
 
-  # Content specifig defaults are derived and hence just relevant for compiling, not for the configuration file
-  content, flags = fill_defaults_that_require_content( content, flags )
+  # Content specifig defaults are derived and hence don't go to the configuration file
+  content, flags = derive_defaults_that_require_content( content, flags )
   latex_source = fill_source(latex_source, content, flags)
 
   ##### Write source to file and compile  #####
