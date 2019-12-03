@@ -9,11 +9,20 @@ import tempfile
 import shutil
 from subprocess import Popen, PIPE, STDOUT, run
 
-latex_source = r'''\documentclass[foldmarks=<NOFOLDMARKS>,foldmarks=H,
-         version=last%
+latex_source = r'''\documentclass[%
+        backaddress=on,%%         backaddress within window
+        foldmarks=<NOFOLDMARKS>,%
+        foldmarks=H,%
+        %fromrule=on,%
+        version=last%
          ]{scrlttr2}
 \usepackage[<LANGUAGE>]{babel}
 \begin{document}
+  \setkomavar{fromname}{<FROMNAME>}
+  \setkomavar{fromaddress}{<FROMADDRESS>}
+  \setkomavar{fromphone}{<FROMPHONE>}
+  \setkomavar{fromemail}{<FROMEMAIL>}
+  \setkomavar{backaddressseparator}{ - }
   \begin{letter}{<RECIPIENT>}
   \opening{<OPENING>}
   \noindent <CONTENT>
@@ -38,11 +47,14 @@ class Entry:
     self.content = []
     if content is not None: self.content = content
     if default is not None: self.default = default
+  def __getitem__(self, arg):
+    return self.content[arg]
 
 content = {
     'CONTENT':  Entry(),
     'RECIPIENT':Entry(),
     'SENDER':   Entry(),
+    'FROMNAME': Entry(),
     'SUBJECT':  Entry(),
     'OPENING':  Entry( default={'ngerman': r'Sehr geehrte Damen und Herren,'} ),
     'CLOSING':  Entry( default={'ngerman': r'Mit freundlichen Gr\"u\ss{}en'} ),
@@ -157,17 +169,45 @@ def next_line(file):
     else: line = line.strip()
   return line
 
-def is_header(line):
-  if line.startswith(char_section): return True
-  else: return False
+def parse_infile(infile, content, flags):
+  """
+  infile: pathlib.Path object
+  content: {'key': class Entry}
+  flags: {'key': class Entry}
+  """
+  def is_header(line):
+    if line.startswith(char_section): return True
+    else: return False
 
-def is_flag(line):
-  if line.startswith(char_flag): return True
-  else: return False
+  def is_flag(line):
+    if line.startswith(char_flag): return True
+    else: return False
 
-def is_header_or_flag(line):
-  if is_header(line) is True or is_flag(line) is True: return True
-  else: return False
+  def is_header_or_flag(line):
+    if is_header(line) is True or is_flag(line) is True: return True
+    else: return False
+
+  with infile.open() as f:
+
+    while (line := next_line(f)):
+
+      if is_header_or_flag(line) is True:
+
+        # Set flag
+        if is_flag(line) is True:
+          verbose( "Found flag {}".format(line[1:].strip()), 2)
+          flags[line[1:].strip()].content = True
+
+        # Save current active section for below lines ...
+        elif is_header(line) is True:
+          verbose( "Found section {}".format(line[1:].strip()), 2)
+          curr_section = line[1:].strip()
+
+      # ... that is here.
+      else:
+        content[curr_section].content.append(line)
+
+  return content, flags
 
 def verbose( message, verbosity=1, args=p ):
   '''Print "message" if "verbosity" <= verbosity level  '''
@@ -272,23 +312,7 @@ if p.configdelete is not False:
 if p.infile:
 
   ##### Parse infile #####
-  with p.infile.open() as f:
-
-    while (line := next_line(f)):
-
-      if is_header_or_flag(line) is True:
-
-        # Set flag
-        if is_flag(line) is True:
-          flags[line[1:].strip()].content = True
-
-        # Save current active section for below lines ...
-        elif is_header(line) is True:
-          curr_section = line[1:].strip()
-
-      # ... that is here.
-      else:
-        content[curr_section].content.append(line)
+  content, flags = parse_infile( p.infile, content, flags )
   ########################
 
   ##### Write parsed content to config file #####
