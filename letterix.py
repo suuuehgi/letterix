@@ -42,26 +42,29 @@ config_lineseparator = ";;"
 path_config = Path("~/.config/letterix.conf").expanduser()
 
 class Entry:
-  def __init__(self, content=None, default=None):
+  def __init__(self, content=None, default=None, optional=None):
     self.default = False
+    self.optional = False
     self.content = []
-    if content is not None: self.content = content
-    if default is not None: self.default = default
+    if content  is not None: self.content  = content
+    if default  is not None: self.default  = default
+    if optional is not None: self.optional = optional
   def __getitem__(self, arg):
     return self.content[arg]
 
 content = {
-    'CONTENT':  Entry(),
-    'RECIPIENT':Entry(),
-    'SENDER':   Entry(),
-    'FROMNAME': Entry(),
-    'SUBJECT':  Entry(),
-    'OPENING':  Entry( default={'ngerman': r'Sehr geehrte Damen und Herren,'} ),
-    'CLOSING':  Entry( default={'ngerman': r'Mit freundlichen Gr\"u\ss{}en'} ),
-    'ENCL':     Entry(),
-    'PS':       Entry(),
-    'CC':       Entry(),
-    'LANGUAGE': Entry( default='ngerman' )
+    'CONTENT':    Entry(),
+    'RECIPIENT':  Entry(),
+    'SENDER':     Entry(),
+    'FROMNAME':   Entry(optional=True),
+    'FROMADDRESS':Entry(optional=True),
+    'SUBJECT':    Entry(),
+    'OPENING':    Entry( default={'ngerman': r'Sehr geehrte Damen und Herren,'} ),
+    'CLOSING':    Entry( default={'ngerman': r'Mit freundlichen Gr\"u\ss{}en'} ),
+    'ENCL':       Entry(),
+    'PS':         Entry(),
+    'CC':         Entry(),
+    'LANGUAGE':   Entry( default='ngerman' )
     }
 
 # Default is always False
@@ -137,6 +140,17 @@ def next_line(file):
     if line == '': return False
     else: line = line.strip()
   return line
+
+def fill_defaults_that_require_content(content=content, flags=flags):
+  """
+  Fill in specific language independent defaults that are dependent on the content
+  """
+  for key in [k for k,v in content.items() if v.content == []]:
+    if key == 'FROMNAME':
+      content['FROMNAME'].content.append( content['SENDER'][0] )
+    elif key == 'FROMADDRESS':
+      content['FROMADDRESS'].content = content['SENDER'][1:]
+  return content, flags
 
 def parse_infile(infile, content, flags):
   """
@@ -370,10 +384,13 @@ def generate_stdout(config, section, content=content, flags=flags, verbosity=p.v
 
   # Example comment
   print(char_comment, 'This is a comment.')
-  for key in content:
+  for key, value in content.items():
 
     # Print header
-    print(char_section, key)
+    if value.optional is True and value.content == []:
+      print(char_comment, char_section, key)
+    else:
+      print(char_section, key)
 
     # Had been defined in config
     if (entries := content[key].content) != []:
@@ -421,9 +438,11 @@ if p.generate is not False:
 ###########################################
 
 ##### Print config #####
+
 if p.configprint is True:
   print(path_config.read_text())
   sys.exit(0)
+
 ########################
 
 ##### Remove section from config #####
@@ -452,7 +471,9 @@ if p.infile:
 
   ##### Fill source code with keys or defaults #####
 
-  latex_source = fill_source(latex_source)
+  # Content specifig defaults are derived and hence just relevant for compiling, not for the configuration file
+  content, flags = fill_defaults_that_require_content( content, flags )
+  latex_source = fill_source(latex_source, content, flags)
 
   ##### Write source to file and compile  #####
 
