@@ -38,7 +38,9 @@ latex_source = r'''\documentclass[%
 char_flag='!'
 char_section='%'
 char_comment='#'
-config_lineseparator = ";;"
+char_cfg_lineseparator = ";;"
+char_cfg_kvseparator = "::"
+
 
 path_config = Path("~/.config/letterix.conf").expanduser()
 
@@ -60,8 +62,13 @@ content = {
     'FROMNAME':   Entry(optional=True),
     'FROMADDRESS':Entry(optional=True),
     'SUBJECT':    Entry(),
-    'OPENING':    Entry( default={'ngerman': r'Sehr geehrte Damen und Herren,'} ),
-    'CLOSING':    Entry( default={'ngerman': r'Mit freundlichen Gr\"u\ss{}en'} ),
+    'OPENING':    Entry( default={
+        'ngerman': r'Sehr geehrte Damen und Herren,',
+        } ),
+    'CLOSING':    Entry( default={
+        'ngerman': r'Mit freundlichen Gr\"u\ss{}en',
+        'english':'Best regards,'
+        } ),
     'ENCL':       Entry(),
     'PS':         Entry(),
     'CC':         Entry(),
@@ -202,20 +209,31 @@ def write_to_config(name, config=path_config, content=content, flags=flags):
   flags:    {'key': class Entry}
   """
 
+  # Write DEFAULT to config the first time
+  trigger_write_default = config.exists()
+
   # Read in config
   config = configuration(config)
 
+  if trigger_write_default is False:
+    config['DEFAULT'].pop('default')
+    for key, value in content.items():
+      if value.default is not False and key != 'LANGUAGE':
+        config['DEFAULT'][key] = char_cfg_lineseparator.join([ char_cfg_kvseparator.join([k,v]) for k,v in value.default.items() ])
+
+  # Entry already in config
   if name in config:
     raise RuntimeError("Key \"{}\" is already in \"{}\". Choose different key or remove first using --configdelete".format(
       name, config.path))
 
+  # Create new config entry
   else:
     config[name] = {}
 
     for key in content:
       # Everything that was specified in infile
       if (value := content[key].content) != []:
-        config[name][key] = config_lineseparator.join(value)
+        config[name][key] = char_cfg_lineseparator.join(value)
 
     for flag in flags:
       if flags[flag].content is True:
@@ -360,14 +378,20 @@ def generate_stdout(config, section, content=content, flags=flags, verbosity=p.v
     # Read configuration file
     config = configuration(config)
 
+    # Read in defaults from config: Config defaults override program defaults
+    section_defaults = { k.upper(): v for k, v in dict( config['DEFAULT'] ).items() }
+    for key, value in section_defaults.items():
+      if key != 'DEFAULT':
+        content[key].defaults = dict( [ i.split(char_cfg_kvseparator)
+                for i in value.split(char_cfg_lineseparator) ] )
+
     # Grep desired section section
-    section_config = dict( config[section] )
-    section_config = {k.upper(): v for k, v in section_config.items()}
+    section_config = {k.upper(): v for k, v in config.items_wodefault(section) }
 
-    # Split up multiline values via config_lineseparator
-    for key in [k for k in section_config if not k == "DEFAULT"]:
+    # Split up multiline values via char_cfg_lineseparator
+    for key in [k for k in section_config if k != "DEFAULT"]:
 
-      for elem in section_config[key].split(config_lineseparator):
+      for elem in section_config[key].split(char_cfg_lineseparator):
 
         if key in content:
           content[key].content.append(elem)
@@ -388,15 +412,36 @@ def generate_stdout(config, section, content=content, flags=flags, verbosity=p.v
   print(char_comment, 'This is a comment.')
   for key, value in content.items():
 
-    # Print header
+    ### Print headers
+
+    # Comment out optional and undefined headers
     if value.optional is True and value.content == []:
       print(char_comment, char_section, key)
+
+    # Print header
     else:
       print(char_section, key)
 
     # Had been defined in config
     if (entries := content[key].content) != []:
       print( "\n".join(entries) )
+
+    # content[key].content == [] (nothing defined) and defaults given
+    elif isinstance( (defaults := content[key].default), dict):
+
+        # Was LANGUAGE defined?
+        if (lang := content['LANGUAGE']).content != []:
+          if lang[0] in defaults:
+            print( defaults[lang[0]])
+          else:
+            raise RuntimeError("\"{}\" was not defined and no default given for language \"{}\"".format(key, lang[0]))
+
+        # ... else take fallback
+        else:
+          if lang.default in defaults:
+            print( defaults[lang.default])
+          else:
+            raise RuntimeError("\"{}\" as well as LANGUAGE was not defined and no default given for fallback language \"{}\"".format(key, lang.default))
 
     print()
 
@@ -413,6 +458,12 @@ class configuration(configparser.ConfigParser):
   def __init__(self, path=None):
     super().__init__(self)
     if path is not None: self.readin(path)
+
+  def items_wodefault(self, section, **kwargs):
+    try:
+      return self._sections[section].items()
+    except KeyError:
+      raise NoSectionError(section)
 
   def verbose( self, message, verbosity_thresh=1, verbosity_curr=p.verbose ):
     '''Print "message" if "verbosity" <= verbosity level  '''
