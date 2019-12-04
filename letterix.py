@@ -20,6 +20,20 @@ latex_source = r'''\documentclass[%
         version=last%
          ]{scrlttr2}
 \usepackage[<LANGUAGE>]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[useregional]{datetime2}
+\usepackage[detect-weight=true, detect-family=true, range-phrase = {--},version-1-compatibility,locale=DE]{siunitx}
+\usepackage{calc}
+\usepackage{eurosym}
+\usepackage{ragged2e}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{tabularx, booktabs, multirow}
+%
+<PREAMBLE>
+%
+\DeclareSIUnit{\EUR}{\text{\euro}}
+%
 \begin{document}
   \setkomavar{fromname}{<FROMNAME>}
   \setkomavar{fromaddress}{<FROMADDRESS>}
@@ -105,6 +119,8 @@ content = {
         description='Complete name of the sender, default: Frist line of SENDER'),
     'FROMADDRESS':Entry(optional=True,
         description='Complete address of the sender, default: Everything but the frist line of SENDER'),
+    'PREAMBLE':   Entry(optional=True, default='',
+        description='Optional content for the LaTeX preamble.'),
     'OPENING':    Entry( default={'ngerman': r'Sehr geehrte Damen und Herren,'},
         description='The opening phrase'),
     'CLOSING':    Entry( default={
@@ -153,6 +169,13 @@ parser.add_argument(
           action='count',
           default=0,
           help='Increase verbosity'
+          )
+
+parser.add_argument(
+          '-l', '--log',
+          default=False,
+          action="store_true",
+          help='Print stdout of pdflatex'
           )
 
 megroup = parser.add_mutually_exclusive_group()
@@ -320,8 +343,8 @@ def fill_source(source=latex_source, content=content, flags=flags):
           # Use, if defined ...
           if iii < len(content[key].content):
             K, V = content[key].content[iii].split(char_cfg_kvseparator)
-            source = source.replace( '<REF{}K>'.format(iii), K )
-            source = source.replace( '<REF{}V>'.format(iii), V )
+            source = source.replace( '<REF{}K>'.format(iii), K.strip() )
+            source = source.replace( '<REF{}V>'.format(iii), V.strip() )
 
           # ... otherwise fill with default (probably '')
           else:
@@ -353,6 +376,9 @@ def fill_source(source=latex_source, content=content, flags=flags):
         source = source.replace( '<{}>'.format(key), r'\encl{<ENCL>}' )
         source = source.replace( '<{}>'.format(key), r'\\'.join(content[key].content) )
 
+      elif key == 'PREAMBLE':
+
+        source = source.replace( '<{}>'.format(key), '\n'.join(content[key].content) )
 
       # General case
       else:
@@ -383,7 +409,10 @@ def fill_source(source=latex_source, content=content, flags=flags):
 
             # LANGUAGE defined AND present among defaults
             if lang[0] in defaults:
-              source = source.replace( '<{}>'.format(key), r'\\'.join(defaults[lang[0]]) )
+              if isinstance( ( d := defaults[lang[0]] ), list ):
+                source = source.replace( '<{}>'.format(key), r'\\'.join(d) )
+              elif isinstance( d, str ):
+                source = source.replace( '<{}>'.format(key), r'{}'.format(d) )
 
             else:
               raise RuntimeError("\"{}\" was not defined and no default given for language \"{}\"".format(key, lang[0]))
@@ -393,7 +422,10 @@ def fill_source(source=latex_source, content=content, flags=flags):
 
             # Is there a default value for the default language?
             if lang.default in defaults:
-              source = source.replace( '<{}>'.format(key), r'\\'.join(defaults[lang.default]) )
+              if isinstance( ( d := defaults[lang.default] ), list ):
+                source = source.replace( '<{}>'.format(key), r'\\'.join(d) )
+              elif isinstance( d, str ):
+                source = source.replace( '<{}>'.format(key), r'{}'.format(d) )
 
             else:
               raise RuntimeError("\"{}\" as well as LANGUAGE was not defined and no default given for fallback language \"{}\"".format(key, lang.default))
@@ -407,7 +439,7 @@ def fill_source(source=latex_source, content=content, flags=flags):
 
   return source
 
-def compile(source, file_out, overwrite=p.overwrite):
+def compile(source, file_out, overwrite=p.overwrite, show_log=False):
   """
   Compiles the latex source "source" in a temp folder and copies the resulting pdf to "file_out".
 
@@ -466,9 +498,12 @@ def compile(source, file_out, overwrite=p.overwrite):
     log.wait()
     result = log.returncode, log.communicate()[0].decode('cp1252').encode('utf-8')
 
+    if show_log is True:
+        print( result[1].decode("utf-8") )
+
     # Compilation failed
     if result[0] > 0:
-      print(result[1])
+      print( result[1].decode("utf-8") )
       print('Compilation failed with exit code {}!'.format(result[0]))
       sys.exit(1)
 
@@ -666,4 +701,4 @@ if p.infile:
   ##### Write source to file and compile  #####
 
   file_out = Path().cwd().joinpath( '{}.pdf'.format(p.infile.stem) )
-  compile( latex_source, file_out, p.overwrite )
+  compile( latex_source, file_out, overwrite=p.overwrite, show_log=p.log )
