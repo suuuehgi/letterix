@@ -139,7 +139,7 @@ content = {
         description='List of recipients getting a copy.'),
     'SPECIALMAIL':Entry(optional=True, default='',
         description='Special notice within the address window.'),
-    'LANGUAGE':   Entry(default='ngerman',
+    'LANGUAGE':   Entry(default='english',
         description='The babel language code, default: ngerman')
     }
 
@@ -176,6 +176,13 @@ parser.add_argument(
           default=False,
           action="store_true",
           help='Print stdout of pdflatex'
+          )
+
+parser.add_argument(
+          '--source',
+          default=False,
+          action="store_true",
+          help='Print generated LaTeX source code'
           )
 
 megroup = parser.add_mutually_exclusive_group()
@@ -384,11 +391,11 @@ def fill_source(source=latex_source, content=content, flags=flags):
       else:
         source = source.replace( '<{}>'.format(key), r'\\'.join(content[key].content) )
 
-    # If undefined / not present in infile, read language specific default
+    # Undefined / not present in infile, read language specific default
     else:
 
       if key == 'LANGUAGE':
-        source = source.replace( '<{}>'.format(key), r'\\'.join(content[key].default) )
+        source = source.replace( '<{}>'.format(key), r'{}'.format(content['LANGUAGE'].default) )
 
       elif key == 'REFERENCES':
 
@@ -697,6 +704,10 @@ if p.infile:
   # Content specifig defaults are derived and hence don't go to the configuration file
   content, flags = derive_defaults_that_require_content( content, flags )
   latex_source = fill_source(latex_source, content, flags)
+
+  if p.source is True:
+    print(latex_source)
+    sys.exit(0)
 
   ##### Write source to file and compile  #####
 
