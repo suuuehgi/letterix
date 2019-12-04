@@ -44,8 +44,8 @@ char_cfg_kvseparator = "|"
 ```
 
 ```bash
-./letterix.py -h
-usage: letterix.py [-h] [-v] [-co CONFIGOUT | -cd CONFIGDELETE | -cp] [-G [GENERATE]] [-f] [infile]
+$ letterix --help
+usage: letterix [-h] [-v] [-l] [--source] [-co CONFIGOUT | -cd CONFIGDELETE | -cp] [-G [GENERATE]] [-f] [infile]
 
 positional arguments:
   infile                Input file to parse
@@ -54,10 +54,11 @@ optional arguments:
   -h, --help            show this help message and exit
   -v, --verbose         Increase verbosity
   -l, --log             Print stdout of pdflatex
+  --source              Print generated LaTeX source code
   -co CONFIGOUT, --configout CONFIGOUT
-                        Read infile and write everything as given str in "/home/username/.config/letterix.conf"
+                        Read infile and write everything as given str in "/home/stephan/.config/letterix.conf"
   -cd CONFIGDELETE, --configdelete CONFIGDELETE
-                        Delete key from config "/home/username/.config/letterix.conf".
+                        Delete key from config "/home/stephan/.config/letterix.conf".
   -cp, --configprint    Print config
   -G [GENERATE], --generate [GENERATE]
                         Generate infile from config. Leave empty for all possibilities.
