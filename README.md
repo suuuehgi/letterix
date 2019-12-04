@@ -3,7 +3,22 @@ Generate LaTeX scrlttr2 letters
 
 ## Usage
 
-`letterix` reads a generic configuration / letter file, translates it to LaTeX source code and compiles it using `pdflatex`.
+`letterix` reads a generic configuration / letter file
+
+```
+[...]
+
+% RECIPIENT
+Joanna Public
+1 Hillside
+SAMPLESTEAD
+
+! NOFOLDMARKS
+
+[...]
+```
+translates it to LaTeX source code and compiles it using `pdflatex`.
+
 There are
 
 ```
@@ -18,6 +33,16 @@ goes here.
 ! FLAGS
 ```
 
+They can be changed using:
+
+```python
+char_flag='!'
+char_section='%'
+char_comment='#'
+char_cfg_lineseparator = ";;"
+char_cfg_kvseparator = "|"
+```
+
 ```bash
 ./letterix.py -h
 usage: letterix.py [-h] [-v] [-co CONFIGOUT | -cd CONFIGDELETE | -cp] [-G [GENERATE]] [-f] [infile]
@@ -28,6 +53,7 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   -v, --verbose         Increase verbosity
+  -l, --log             Print stdout of pdflatex
   -co CONFIGOUT, --configout CONFIGOUT
                         Read infile and write everything as given str in "/home/username/.config/letterix.conf"
   -cd CONFIGDELETE, --configdelete CONFIGDELETE
@@ -36,6 +62,30 @@ optional arguments:
   -G [GENERATE], --generate [GENERATE]
                         Generate infile from config. Leave empty for all possibilities.
   -f, --overwrite       Overwrite existing pdf files.
+```
+
+## Minimal Example
+
+```
+%SENDER
+John Doe
+351 Murfreesboro Pike
+Nashville, TN 37210
+USA
+
+%RECIPIENT
+Joanna Public
+1 Hillside
+SAMPLESTEAD
+WX12 3YZ
+
+%OPENING
+Dear Madam Chair,
+
+%CONTENT
+The last general meeting was more than a year ago.
+I would like to remind you that the articles of our club stipulate that one should be held every six months.
+For this reason, I call on the executive board to arrange such a meeting immediately.
 ```
 
 ## Examples
@@ -127,6 +177,9 @@ Next Meeting
 
 # Complete address of the sender, default: Everything but the frist line of SENDER
 # % FROMADDRESS
+
+# Optional content for the LaTeX preamble.
+# % PREAMBLE
 
 # The opening phrase
 % OPENING
