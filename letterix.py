@@ -12,9 +12,11 @@ from subprocess import Popen, PIPE, STDOUT, run
 
 latex_source = r'''\documentclass[%
         backaddress=<NOBACKADDRESS>,%%         backaddress within window
+        firsthead=<NOFIRSTHEAD>,%
         foldmarks=<NOFOLDMARKS>,%
         foldmarks=H,%
         %fromrule=on,%
+        refline=<REFLINEWIDE>,%
         version=last%
          ]{scrlttr2}
 \usepackage[<LANGUAGE>]{babel}
@@ -24,14 +26,30 @@ latex_source = r'''\documentclass[%
   \setkomavar{fromphone}{<FROMPHONE>}
   \setkomavar{fromemail}{<FROMEMAIL>}
   \setkomavar{backaddressseparator}{ - }
+  \setkomavar{specialmail}{<SPECIALMAIL>}
+  %
+  \setkomavar{date}{<DATE>}
+  \setkomavar{yourref}[<REF0K>]{<REF0V>}
+  \setkomavar{yourmail}[<REF1K>]{<REF1V>}
+  \setkomavar{myref}[<REF2K>]{<REF2V>}
+  \setkomavar{customer}[<REF3K>]{<REF3V>}
+  \setkomavar{invoice}[<REF4K>]{<REF4V>}
+  %
+  \setkomavar{title}{<TITLE>}
+  \setkomavar{subject}{<SUBJECT>}
+  %
+  <SIGNATURE>
+  \setplength{sigbeforevskip}{4\baselineskip}
+  <DENCL>
+  <DCC>
+  %
   \begin{letter}{<RECIPIENT>}
   \opening{<OPENING>}
   \noindent <CONTENT>
   \closing{<CLOSING>}
   \ps{<PS>}
-  \setkomavar*{enclseparator}{Anlage}
-  \encl{<ENCL>}
-  \cc{<CC>}
+  <ENCL>
+  <CC>
   \end{letter}
 \end{document}'''
 
@@ -39,46 +57,86 @@ char_flag='!'
 char_section='%'
 char_comment='#'
 char_cfg_lineseparator = ";;"
-char_cfg_kvseparator = "::"
+char_cfg_kvseparator = "|"
 
 
 path_config = Path("~/.config/letterix.conf").expanduser()
 
 class Entry:
-  def __init__(self, content=None, default=None, optional=None):
-    self.default = False
-    self.optional = False
-    self.content = []
-    if content  is not None: self.content  = content
-    if default  is not None: self.default  = default
-    if optional is not None: self.optional = optional
+  def __init__(self,
+               content=None,
+               default=None,
+               optional=None,
+               description=None
+              ):
+    self.default     = False
+    self.description = False
+    self.optional    = False
+    self.content     = []
+    if content      is not None: self.content  = content
+    if default      is not None: self.default  = default
+    if description  is not None: self.description  = description
+    if optional     is not None: self.optional = optional
+  def is_optional(self):
+    return self.optional
+  def is_defined(self):
+    return self.content != []
   def __getitem__(self, arg):
     return self.content[arg]
 
 content = {
-    'CONTENT':    Entry(),
-    'RECIPIENT':  Entry(),
-    'SENDER':     Entry(),
-    'FROMNAME':   Entry(optional=True),
-    'FROMADDRESS':Entry(optional=True),
-    'SUBJECT':    Entry(),
-    'OPENING':    Entry( default={
-        'ngerman': r'Sehr geehrte Damen und Herren,',
-        } ),
+    'CONTENT':    Entry(
+        description='Content of the letter.'),
+    'DATE':       Entry(optional=True, default=r'\today',
+        description='String to be used as date, default: \\today'),
+    'RECIPIENT':  Entry(
+        description='Everything that should go to the address window.'),
+    'REFERENCES': Entry(optional=True, default='',
+        description='Up to five references, separated by {s}\nE.g. "Your reference{s}12345"'.format(s=char_cfg_kvseparator)),
+    'SENDER':     Entry(
+        description='Everything that should go to the backaddress of the address window.'),
+    'SIGNATURE':  Entry(optional=True, default='',
+        description='Explanation of the signature, default: Frist line of SENDER'),
+    'SUBJECT':    Entry(optional=True, default='',
+        description='The subject ...'),
+    'TITLE':      Entry(optional=True, default='',
+        description='Additional boldface title.'),
+    'FROMNAME':   Entry(optional=True,
+        description='Complete name of the sender, default: Frist line of SENDER'),
+    'FROMADDRESS':Entry(optional=True,
+        description='Complete address of the sender, default: Everything but the frist line of SENDER'),
+    'OPENING':    Entry( default={'ngerman': r'Sehr geehrte Damen und Herren,'},
+        description='The opening phrase'),
     'CLOSING':    Entry( default={
         'ngerman': r'Mit freundlichen Gr\"u\ss{}en',
-        'english':'Best regards,'
-        } ),
-    'ENCL':       Entry(),
-    'PS':         Entry(),
-    'CC':         Entry(),
-    'LANGUAGE':   Entry( default='ngerman' )
+        'english':'Best regards,'},
+        description='The closing phrase'),
+    'ENCL':       Entry(optional=True, default='',
+        description='List additional attachments'),
+    'DENCL':      Entry(optional=True, default='',
+        description='Description to be used for ENCL'),
+    'PS':         Entry(optional=True, default='',
+        description='Additional textline below the letter.'),
+    'DCC':        Entry(optional=True, default='',
+        description='Description to be used for CC'),
+    'CC':         Entry(optional=True, default='',
+        description='List of recipients getting a copy.'),
+    'SPECIALMAIL':Entry(optional=True, default='',
+        description='Special notice within the address window.'),
+    'LANGUAGE':   Entry(default='ngerman',
+        description='The babel language code, default: ngerman')
     }
 
 # Default is always False
 flags = {
-  'NOFOLDMARKS':   Entry(False, default={True:"false", False:"true"}),
-  'NOBACKADDRESS': Entry(False, default={True:"off", False:"on"})
+  'NOFIRSTHEAD':   Entry(False, default={True:"off",   False:"on"},
+      description='Remove the SENDERs information above the address window.'),
+  'NOFOLDMARKS':   Entry(False, default={True:"false", False:"true"},
+      description='Remove foldmarks on the left-hand margin.'),
+  'NOBACKADDRESS': Entry(False, default={True:"off",   False:"on"},
+      description='Don\'t print a backaddress within the address window.'),
+  'REFLINEWIDE':   Entry(False, default={True:'wide',  False:'narrow'},
+      description='Use a wide reference line.')
 }
 
 parser = argparse.ArgumentParser()
@@ -103,7 +161,7 @@ megroup.add_argument(
            '-co', '--configout',
            type=str,
            default=False,
-           help='Read infile and write everything as given str in {}'.format(path_config)
+           help='Read infile and write everything as given str in \"{}\"'.format(path_config)
            )
 
 megroup.add_argument(
@@ -154,7 +212,7 @@ def derive_defaults_that_require_content(content=content, flags=flags):
   """
   Fill in specific language independent defaults that are dependent on the content
   """
-  for key in [k for k,v in content.items() if v.content == []]:
+  for key in [k for k,v in content.items() if not v.is_defined() ]:
     if key == 'FROMNAME':
       content['FROMNAME'].content.append( content['SENDER'][0] )
     elif key == 'FROMADDRESS':
@@ -215,10 +273,10 @@ def write_to_config(name, config=path_config, content=content, flags=flags):
   # Read in config
   config = configuration(config)
 
+  # Write DEFAULT to config the first time
   if trigger_write_default is False:
-    config['DEFAULT'].pop('default')
     for key, value in content.items():
-      if value.default is not False and key != 'LANGUAGE':
+      if isinstance( value.default, dict ) and key != 'LANGUAGE':
         config['DEFAULT'][key] = char_cfg_lineseparator.join([ char_cfg_kvseparator.join([k,v]) for k,v in value.default.items() ])
 
   # Entry already in config
@@ -232,8 +290,8 @@ def write_to_config(name, config=path_config, content=content, flags=flags):
 
     for key in content:
       # Everything that was specified in infile
-      if (value := content[key].content) != []:
-        config[name][key] = char_cfg_lineseparator.join(value)
+      if (value := content[key]).is_defined():
+        config[name][key] = char_cfg_lineseparator.join(value.content)
 
     for flag in flags:
       if flags[flag].content is True:
@@ -251,16 +309,98 @@ def fill_source(source=latex_source, content=content, flags=flags):
   for key in content:
 
     # Take from infile
-    if content[key].content != []:
-      source = source.replace( '<{}>'.format(key), r'\\'.join(content[key].content) )
+    if content[key].is_defined():
 
-    # Not present in infile, read language specific default
+      # Need special treatment
+      if key == 'REFERENCES':
+
+        # Iterate over all 5 possible references
+        for iii in range(5):
+
+          # Use, if defined ...
+          if iii < len(content[key].content):
+            K, V = content[key].content[iii].split(char_cfg_kvseparator)
+            source = source.replace( '<REF{}K>'.format(iii), K )
+            source = source.replace( '<REF{}V>'.format(iii), V )
+
+          # ... otherwise fill with default (probably '')
+          else:
+            source = source.replace( '<REF{}K>'.format(iii), content['REFERENCES'].default )
+            source = source.replace( '<REF{}V>'.format(iii), content['REFERENCES'].default )
+
+      elif key == 'SIGNATURE':
+
+        source = source.replace( '<{}>'.format(key), r'\setkomavar{signature}{<SIGNATURE>}' )
+        source = source.replace( '<{}>'.format(key), r'\\'.join(content[key].content) )
+
+      elif key == 'DCC':
+
+        source = source.replace( '<{}>'.format(key), r'\setkomavar*{ccseparator}{<DCC>}' )
+        source = source.replace( '<{}>'.format(key), r'\\'.join(content[key].content) )
+
+      elif key == 'CC':
+
+        source = source.replace( '<{}>'.format(key), r'\cc{<CC>}' )
+        source = source.replace( '<{}>'.format(key), r'\\'.join(content[key].content) )
+
+      elif key == 'DENCL':
+
+        source = source.replace( '<{}>'.format(key), r'\setkomavar*{enclseparator}{<DENCL>}' )
+        source = source.replace( '<{}>'.format(key), r'\\'.join(content[key].content) )
+
+      elif key == 'ENCL':
+
+        source = source.replace( '<{}>'.format(key), r'\encl{<ENCL>}' )
+        source = source.replace( '<{}>'.format(key), r'\\'.join(content[key].content) )
+
+
+      # General case
+      else:
+        source = source.replace( '<{}>'.format(key), r'\\'.join(content[key].content) )
+
+    # If undefined / not present in infile, read language specific default
     else:
+
       if key == 'LANGUAGE':
         source = source.replace( '<{}>'.format(key), r'\\'.join(content[key].default) )
+
+      elif key == 'REFERENCES':
+
+        # Iterate over all 5 possible references
+        for iii in range(5):
+
+          # fill with default (probably '')
+          source = source.replace( '<REF{}K>'.format(iii), content['REFERENCES'].default )
+          source = source.replace( '<REF{}V>'.format(iii), content['REFERENCES'].default )
+
       else:
-        if content[key].default is not False:
-          source = source.replace( '<{}>'.format(key), r'\\'.join(content[key].default[content['LANGUAGE']]) )
+
+        # Has language specific defaults
+        if isinstance( ( defaults := content[key].default ), dict ):
+
+          # Was LANGUAGE defined?
+          if (lang := content['LANGUAGE']).is_defined():
+
+            # LANGUAGE defined AND present among defaults
+            if lang[0] in defaults:
+              source = source.replace( '<{}>'.format(key), r'\\'.join(defaults[lang[0]]) )
+
+            else:
+              raise RuntimeError("\"{}\" was not defined and no default given for language \"{}\"".format(key, lang[0]))
+
+          # LANGUAGE was not defined
+          else:
+
+            # Is there a default value for the default language?
+            if lang.default in defaults:
+              source = source.replace( '<{}>'.format(key), r'\\'.join(defaults[lang.default]) )
+
+            else:
+              raise RuntimeError("\"{}\" as well as LANGUAGE was not defined and no default given for fallback language \"{}\"".format(key, lang.default))
+
+        # There is a language independent default str
+        elif isinstance( ( default_str := content[key].default ), str ):
+          source = source.replace( '<{}>'.format(key), default_str )
 
   for flag, value in flags.items():
     source = source.replace( '<{}>'.format(flag), r'{}'.format(value.default[value.content]) )
@@ -410,12 +550,19 @@ def generate_stdout(config, section, content=content, flags=flags, verbosity=p.v
 
   # Example comment
   print(char_comment, 'This is a comment.')
+  print()
+
   for key, value in content.items():
 
     ### Print headers
 
+    # Print description if available
+    if value.description:
+      for d in value.description.split('\n'):
+        print(char_comment, d)
+
     # Comment out optional and undefined headers
-    if value.optional is True and value.content == []:
+    if value.is_optional() and not value.is_defined():
       print(char_comment, char_section, key)
 
     # Print header
@@ -423,30 +570,16 @@ def generate_stdout(config, section, content=content, flags=flags, verbosity=p.v
       print(char_section, key)
 
     # Had been defined in config
-    if (entries := content[key].content) != []:
-      print( "\n".join(entries) )
-
-    # content[key].content == [] (nothing defined) and defaults given
-    elif isinstance( (defaults := content[key].default), dict):
-
-        # Was LANGUAGE defined?
-        if (lang := content['LANGUAGE']).content != []:
-          if lang[0] in defaults:
-            print( defaults[lang[0]])
-          else:
-            raise RuntimeError("\"{}\" was not defined and no default given for language \"{}\"".format(key, lang[0]))
-
-        # ... else take fallback
-        else:
-          if lang.default in defaults:
-            print( defaults[lang.default])
-          else:
-            raise RuntimeError("\"{}\" as well as LANGUAGE was not defined and no default given for fallback language \"{}\"".format(key, lang.default))
+    if (value := content[key]).is_defined():
+      print( "\n".join(value.content) )
 
     print()
 
-  print( char_comment, "Flags" )
+  print( 3*char_comment, "Flags" )
+
   for flag in flags:
+    if (desc := flags[flag].description):
+      print(char_comment, desc)
     if flags[flag].content is True:
       print(char_flag, flag, '\n')
     else:
@@ -471,6 +604,8 @@ class configuration(configparser.ConfigParser):
       print(message)
 
   def writeout(self):
+    if 'default' in self['DEFAULT']:
+      self['DEFAULT'].pop('default')
     with self.path.open('w') as f:
       self.write(f)
 
