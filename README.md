@@ -89,7 +89,7 @@ I would like to remind you that the articles of our club stipulate that one shou
 For this reason, I call on the executive board to arrange such a meeting immediately.
 ```
 
-![MWE](./minimal.svg)
+<kbd>![MWE](./samples/minimal.svg)</kbd>
 
 ## Examples
 
@@ -241,4 +241,4 @@ $ letterix.py -G sample > sample2.ltr
 $ letterix sample2.ltr
 ```
 
-![Example](./sample.svg)
+<kbd>![Example](./samples/sample.svg)</kbd>
