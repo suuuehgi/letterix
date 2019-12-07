@@ -31,6 +31,7 @@ latex_source = r'''\documentclass[%
 \usepackage{tabularx, booktabs, multirow}
 %
 <PREAMBLE>
+<REFERENCESRIGHT>
 %
 \DeclareSIUnit{\EUR}{\text{\euro}}
 %
@@ -67,11 +68,20 @@ latex_source = r'''\documentclass[%
   \end{letter}
 \end{document}'''
 
+references_right = r'''\makeatletter
+\@setplength{refvpos}{\useplength{toaddrvpos}}
+\@setplength{refhpos}{\paperwidth-14em}
+\@setplength{refwidth}{3cm}
+\@setplength{refaftervskip}{\useplength{toaddrvpos}-2\baselineskip}
+\makeatother'''
+
+##### Seperators #####
 char_flag='!'
 char_section='%'
 char_comment='#'
 char_cfg_lineseparator = ";;"
 char_cfg_kvseparator = "|"
+######################
 
 
 path_config = Path("~/.config/letterix.conf").expanduser()
@@ -145,13 +155,15 @@ content = {
 
 # Default is always False
 flags = {
-  'NOFIRSTHEAD':   Entry(False, default={True:"off",   False:"on"},
+  'NOFIRSTHEAD':     Entry(False, default={True:"off",   False:"on"},
       description='Remove the SENDERs information above the address window.'),
-  'NOFOLDMARKS':   Entry(False, default={True:"false", False:"true"},
+  'NOFOLDMARKS':     Entry(False, default={True:"false", False:"true"},
       description='Remove foldmarks on the left-hand margin.'),
-  'NOBACKADDRESS': Entry(False, default={True:"off",   False:"on"},
+  'NOBACKADDRESS':   Entry(False, default={True:"off",   False:"on"},
       description='Don\'t print a backaddress within the address window.'),
-  'REFLINEWIDE':   Entry(False, default={True:'wide',  False:'narrow'},
+  'REFERENCESRIGHT': Entry(False, default={True:references_right,  False:''},
+      description='Use a wide reference line.'),
+  'REFLINEWIDE':     Entry(False, default={True:'wide',  False:'narrow'},
       description='Use a wide reference line.')
 }
 

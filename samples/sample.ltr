@@ -49,11 +49,3 @@ Excerpt from the articles governing general meetings
 Enclosure
 
 !REFLINEWIDE
-
-%PREAMBLE
-\makeatletter
-\@setplength{refvpos}{\useplength{toaddrvpos}}
-\@setplength{refhpos}{\paperwidth-14em}
-\@setplength{refwidth}{3cm}
-\@setplength{refaftervskip}{\useplength{toaddrvpos}-2\baselineskip}
-\makeatother

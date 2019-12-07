@@ -44,25 +44,30 @@ char_cfg_kvseparator = "|"
 ```
 
 ```bash
-$ letterix --help
-usage: letterix [-h] [-v] [-l] [--source] [-co CONFIGOUT | -cd CONFIGDELETE | -cp] [-G [GENERATE]] [-f] [infile]
+$ letterix.py --help
+usage: letterix [-h] [-v] [-l] [--source]
+                [-co CONFIGOUT | -cd CONFIGDELETE | -cp] [-G [GENERATE]] [-f]
+  -l, --log             Print stdout of pdflatex
+  -co CONFIGOUT, --configout CONFIGOUT
+optional arguments:
 
 positional arguments:
   infile                Input file to parse
-
-optional arguments:
   -h, --help            show this help message and exit
+
   -v, --verbose         Increase verbosity
-  -l, --log             Print stdout of pdflatex
+                [infile]
+                        Delete key from config
   --source              Print generated LaTeX source code
-  -co CONFIGOUT, --configout CONFIGOUT
-                        Read infile and write everything as given str in "/home/stephan/.config/letterix.conf"
   -cd CONFIGDELETE, --configdelete CONFIGDELETE
-                        Delete key from config "/home/stephan/.config/letterix.conf".
   -cp, --configprint    Print config
-  -G [GENERATE], --generate [GENERATE]
-                        Generate infile from config. Leave empty for all possibilities.
   -f, --overwrite       Overwrite existing pdf files.
+                        Read infile and write everything as given str in
+                        "/home/username/.config/letterix.conf"
+                        possibilities.
+                        "/home/username/.config/letterix.conf".
+  -G [GENERATE], --generate [GENERATE]
+                        Generate infile from config. Leave empty for all
 ```
 
 ## Minimal Example
@@ -100,7 +105,7 @@ You might remove non-general entries such as `content`.
 
 ```bash
 # Store sample.ltr as sample within config
-$ letterix.py sample.ltr -co sample
+$ letterix.py samples/sample.ltr -co sample
 
 # Print config file
 $ letterix.py -cp
@@ -111,7 +116,7 @@ closing = ngerman|Mit freundlichen Gr\"u\ss{}en;;english|Best regards,
 [sample]
 content = The last general meeting was more than a year ago.;;I would like to remind you that the articles of our club stipulate that one should be held every six months.;;For this reason, I call on the executive board to arrange such a meeting immediately.
 recipient = Joanna Public;;1 Hillside;;SAMPLESTEAD;;WX12 3YZ
-references = Your reference|123.456;;Customer No.|12345;;Your letter from| November 6, 2001
+references = Your reference|123.45/6;;Customer No.|\num{1234567890};;Your letter from|November 6, 2001
 sender = John Doe;;351 Murfreesboro Pike;;Nashville, TN 37210;;USA
 subject = Next Meeting
 opening = Dear Madam Chair,
@@ -154,9 +159,9 @@ WX12 3YZ
 # Up to five references, separated by |
 # E.g. "Your reference|12345"
 % REFERENCES
-Your reference|123.456
-Customer No.|12345
-Your letter from| November 6, 2001
+Your reference|123.45/6
+Customer No.|\num{1234567890}
+Your letter from|November 6, 2001
 
 # Everything that should go to the backaddress of the address window.
 % SENDER
@@ -231,6 +236,9 @@ english
 # ! NOBACKADDRESS
 
 # Use a wide reference line.
+# ! REFERENCESRIGHT
+
+# Use a wide reference line.
 ! REFLINEWIDE
 ```
 
@@ -238,7 +246,7 @@ english
 
 ```bash
 $ letterix.py -G sample > sample2.ltr
-$ letterix sample2.ltr
+$ letterix.py sample2.ltr
 ```
 
 <kbd>![Example](./samples/sample.svg)</kbd>
