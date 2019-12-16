@@ -24,6 +24,7 @@ latex_source = r'''\documentclass[%
 \usepackage[useregional]{datetime2}
 \usepackage[detect-weight=true, detect-family=true, range-phrase = {--},version-1-compatibility,locale=DE]{siunitx}
 \usepackage{calc}
+\usepackage{csquotes}
 \usepackage{eurosym}
 \usepackage{ragged2e}
 \usepackage{graphicx}
@@ -395,7 +396,7 @@ def fill_source(source=latex_source, content=content, flags=flags):
         source = source.replace( '<{}>'.format(key), r'\encl{<ENCL>}' )
         source = source.replace( '<{}>'.format(key), r'\\'.join(content[key].content) )
 
-      elif key == 'PREAMBLE':
+      elif key in ['PREAMBLE', 'CONTENT']:
 
         source = source.replace( '<{}>'.format(key), '\n'.join(content[key].content) )
 
