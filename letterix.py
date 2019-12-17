@@ -19,16 +19,21 @@ latex_source = r'''\documentclass[%
         refline=<REFLINEWIDE>,%
         version=last%
          ]{scrlttr2}
+\usepackage{microtype}
 \usepackage[<LANGUAGE>]{babel}
 \usepackage[utf8]{inputenc}
 \usepackage[useregional]{datetime2}
-\usepackage[detect-weight=true, detect-family=true, range-phrase = {--},version-1-compatibility,locale=DE]{siunitx}
+\usepackage{blindtext}
 \usepackage{calc}
-\usepackage{csquotes}
+\usepackage[%
+    autostyle=true,%
+    csdisplay=true,%
+    ]{csquotes}
 \usepackage{eurosym}
 \usepackage{ragged2e}
 \usepackage{graphicx}
 \usepackage{hyperref}
+\usepackage[detect-weight=true, detect-family=true, range-phrase = {--},version-1-compatibility,locale=DE]{siunitx}
 \usepackage{tabularx, booktabs, multirow}
 %
 <PREAMBLE>
