@@ -42,6 +42,7 @@ latex_source = r'''\documentclass[%
 \DeclareSIUnit{\EUR}{\text{\euro}}
 %
 \begin{document}
+  \setplength{foldmarkhpos}{2em}
   \setkomavar{fromname}{<FROMNAME>}
   \setkomavar{fromaddress}{<FROMADDRESS>}
   \setkomavar{fromphone}{<FROMPHONE>}
