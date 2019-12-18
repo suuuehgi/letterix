@@ -183,6 +183,36 @@ Next Meeting
 # Complete name of the sender, default: Frist line of SENDER
 # % FROMNAME
 
+# E-Mail addresse of the sender
+# % FROMEMAIL
+
+# Description to be used for FROMEMAIL, you can use the keyword "empty"
+# % DFROMEMAIL
+
+# Phone number of the sender
+# % FROMPHONE
+
+# Description to be used for FROMPHONE, you can use the keyword "empty"
+# % DFROMPHONE
+
+# Mobile phone number of the sender
+# % FROMMOBILE
+
+# Description to be used for FROMMOBILE, you can use the keyword "empty"
+# % DFROMMOBILE
+
+# Fax number of the sender
+# % FROMFAX
+
+# Description to be used for FROMFAX, you can use the keyword "empty"
+# % DFROMFAX
+
+# URL of the sender website
+# % FROMURL
+
+# Description to be used for FROMURL, you can use the keyword "empty"
+# % DFROMURL
+
 # Complete address of the sender, default: Everything but the frist line of SENDER
 # % FROMADDRESS
 
@@ -226,6 +256,9 @@ Registered Mail
 english
 
 ### Flags
+# Place the senders address information on the right.
+# ! FROMRIGHT
+
 # Remove the SENDERs information above the address window.
 # ! NOFIRSTHEAD
 
