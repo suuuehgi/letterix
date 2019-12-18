@@ -12,9 +12,17 @@ from subprocess import Popen, PIPE, STDOUT, run
 
 latex_source = r'''\documentclass[%
         backaddress=<NOBACKADDRESS>,%%         backaddress within window
+        % TODO
+        fromalign=<FROMRIGHT>,%
         firsthead=<NOFIRSTHEAD>,%
         foldmarks=<NOFOLDMARKS>,%
         foldmarks=H,%
+        % TODO
+        fromphone=<FROMPHONE_TRIG>,%
+        frommobilephone=<FROMMOBILE_TRIG>,%
+        fromemail=<FROMEMAIL_TRIG>,%
+        fromfax=<FROMFAX_TRIG>,%
+        fromurl=<FROMURL_TRIG>,%
         %fromrule=on,%
         refline=<REFLINEWIDE>,%
         version=last%
@@ -26,15 +34,27 @@ latex_source = r'''\documentclass[%
 \usepackage{blindtext}
 \usepackage{calc}
 \usepackage[%
-    autostyle=true,%
-    csdisplay=true,%
+    autostyle=true, %
+    csdisplay=true, %
     ]{csquotes}
 \usepackage{eurosym}
 \usepackage{ragged2e}
 \usepackage{graphicx}
 \usepackage{hyperref}
-\usepackage[detect-weight=true, detect-family=true, range-phrase = {--},version-1-compatibility,locale=DE]{siunitx}
+\usepackage{phonenumbers}
+\usepackage[%
+     detect-weight=true,        %
+     detect-family=true,        %
+     range-phrase = {--},       %
+     version-1-compatibility,   %
+     locale=DE                  %
+     ]{siunitx}
 \usepackage{tabularx, booktabs, multirow}
+%
+% Move quotation marks ahead of block
+\makeatletter
+\renewcommand\mkblockquote[4]{\leavevmode\llap{\openautoquote\csq@eqgroup}\csq@bqgroup\advance\csq@qlevel\@ne#1#2#3\closeautoquote#4}
+\makeatother
 %
 <PREAMBLE>
 <REFERENCESRIGHT>
@@ -42,11 +62,16 @@ latex_source = r'''\documentclass[%
 \DeclareSIUnit{\EUR}{\text{\euro}}
 %
 \begin{document}
-  \setplength{foldmarkhpos}{2em}
+  % Distance
+  \setplength{foldmarkhpos}{5mm}
   \setkomavar{fromname}{<FROMNAME>}
   \setkomavar{fromaddress}{<FROMADDRESS>}
-  \setkomavar{fromphone}{<FROMPHONE>}
-  \setkomavar{fromemail}{<FROMEMAIL>}
+  \setkomavar{fromphone}<DFROMPHONE>{<FROMPHONE>}
+  \setkomavar{frommobilephone}<DFROMMOBILE>{<FROMMOBILE>}
+  \setkomavar{fromemail}<DFROMEMAIL>{<FROMEMAIL>}
+  \setkomavar{fromfax}<DFROMFAX>{<FROMFAX>}
+  \setkomavar{fromurl}<DFROMURL>{<FROMURL>}
+  \urlstyle{same}
   \setkomavar{backaddressseparator}{ - }
   \setkomavar{specialmail}{<SPECIALMAIL>}
   %
@@ -134,6 +159,28 @@ content = {
         description='Additional boldface title.'),
     'FROMNAME':   Entry(optional=True,
         description='Complete name of the sender, default: Frist line of SENDER'),
+    'FROMEMAIL':   Entry(optional=True, default='',
+        description='E-Mail addresse of the sender'),
+    'DFROMEMAIL':  Entry(optional=True, default='',
+        description='Description to be used for FROMEMAIL, you can use the keyword "empty"'),
+    'FROMPHONE':  Entry(optional=True, default='',
+        description='Phone number of the sender'),
+    'DFROMPHONE': Entry(optional=True, default='',
+        description='Description to be used for FROMPHONE, you can use the keyword "empty"'),
+    'FROMMOBILE': Entry(optional=True, default='',
+        description='Mobile phone number of the sender'),
+    'DFROMMOBILE':Entry(optional=True, default='',
+        description='Description to be used for FROMMOBILE, you can use the keyword "empty"'),
+    'FROMFAX':    Entry(optional=True, default='',
+        description='Fax number of the sender'),
+    'DFROMFAX':   Entry(optional=True, default='',
+        description='Description to be used for FROMFAX, you can use the keyword "empty"'),
+    'FROMURL':    Entry(optional=True, default='',
+        description='URL of the sender website'),
+    'DFROMURL':   Entry(optional=True, default='',
+        description='Description to be used for FROMURL, you can use the keyword "empty"'),
+    'FROMNAME':   Entry(optional=True,
+        description='Complete name of the sender, default: Frist line of SENDER'),
     'FROMADDRESS':Entry(optional=True,
         description='Complete address of the sender, default: Everything but the frist line of SENDER'),
     'PREAMBLE':   Entry(optional=True, default='',
@@ -162,6 +209,8 @@ content = {
 
 # Default is always False
 flags = {
+  'FROMRIGHT':       Entry(False, default={True:'right',  False:'left'},
+      description='Place the senders address information on the right.'),
   'NOFIRSTHEAD':     Entry(False, default={True:"off",   False:"on"},
       description='Remove the SENDERs information above the address window.'),
   'NOFOLDMARKS':     Entry(False, default={True:"false", False:"true"},
@@ -377,6 +426,37 @@ def fill_source(source=latex_source, content=content, flags=flags):
             source = source.replace( '<REF{}K>'.format(iii), content['REFERENCES'].default )
             source = source.replace( '<REF{}V>'.format(iii), content['REFERENCES'].default )
 
+      elif key in ['FROMFAX', 'FROMEMAIL', 'FROMMOBILE', 'FROMPHONE', 'FROMURL']:
+        source = source.replace( '<{}_TRIG>'.format(key), 'on' )
+
+        if key == 'FROMEMAIL':
+
+          source = source.replace( '<{}>'.format(key),
+            '\href{{mailto:{mail}}}{{{mail}}}'.format( mail=r'\\'.join(content[key].content) )
+            )
+
+        elif key == 'FROMURL':
+
+          source = source.replace( '<{}>'.format(key),
+            r'\url{{{}}}'.format( r'\\'.join(content[key].content) )
+            )
+
+        elif key in ['FROMMOBILE', 'FROMPHONE', 'FROMFAX']:
+
+          source = source.replace( '<{}>'.format(key),
+            '\phonenumber{{{}}}'.format( r'\\'.join(content[key].content) )
+            )
+
+        else:
+          source = source.replace( '<{}>'.format(key), r'\\'.join(content[key].content) )
+
+      elif key in ['DFROMFAX', 'DFROMEMAIL', 'DFROMMOBILE', 'DFROMPHONE', 'DFROMURL']:
+
+        if content[key].content[0] == 'empty':
+          source = source.replace( '<{}>'.format(key), '[]' )
+        else:
+          source = source.replace( '<{}>'.format(key), '[' + r'\\'.join(content[key].content) + ']' )
+
       elif key == 'SIGNATURE':
 
         source = source.replace( '<{}>'.format(key), r'\setkomavar{signature}{<SIGNATURE>}' )
@@ -458,6 +538,10 @@ def fill_source(source=latex_source, content=content, flags=flags):
 
         # There is a language independent default str
         elif isinstance( ( default_str := content[key].default ), str ):
+
+          if key in ['FROMFAX', 'FROMEMAIL', 'FROMMOBILE', 'FROMPHONE', 'FROMURL']:
+            source = source.replace( '<{}_TRIG>'.format(key), 'off' )
+
           source = source.replace( '<{}>'.format(key), default_str )
 
   for flag, value in flags.items():
