@@ -141,20 +141,26 @@ class Entry:
     return self.content[arg]
 
 content = {
-    'CONTENT':    Entry(
-        description='Content of the letter.'),
-    'DATE':       Entry(optional=True, default=r'\today',
-        description='String to be used as date, default: \\today'),
-    'RECIPIENT':  Entry(
-        description='Everything that should go to the address window.'),
-    'REFERENCES': Entry(optional=True, default='',
-        description='Up to five references, separated by {s}\nE.g. "Your reference{s}12345"'.format(s=char_cfg_kvseparator)),
     'SENDER':     Entry(
         description='Everything that should go to the backaddress of the address window.'),
-    'SIGNATURE':  Entry(optional=True, default='',
-        description='Explanation of the signature, default: Frist line of SENDER'),
+    'RECIPIENT':  Entry(
+        description='Everything that should go to the address window.'),
     'SUBJECT':    Entry(optional=True, default='',
         description='The subject ...'),
+    'OPENING':    Entry( default={'ngerman': r'Sehr geehrte Damen und Herren,'},
+        description='The opening phrase'),
+    'CLOSING':    Entry( default={
+        'ngerman': r'Mit freundlichen Gr\"u\ss{}en',
+        'english':'Best regards,'},
+        description='The closing phrase'),
+    'CONTENT':    Entry(
+        description='Content of the letter.'),
+    'REFERENCES': Entry(optional=True, default='',
+        description='Up to five references, separated by {s}\nE.g. "Your reference{s}12345"'.format(s=char_cfg_kvseparator)),
+    'DATE':       Entry(optional=True, default=r'\today',
+        description='String to be used as date, default: \\today'),
+    'SIGNATURE':  Entry(optional=True, default='',
+        description='Explanation of the signature, default: Frist line of SENDER'),
     'TITLE':      Entry(optional=True, default='',
         description='Additional boldface title.'),
     'FROMNAME':   Entry(optional=True,
@@ -185,12 +191,6 @@ content = {
         description='Complete address of the sender, default: Everything but the frist line of SENDER'),
     'PREAMBLE':   Entry(optional=True, default='',
         description='Optional content for the LaTeX preamble.'),
-    'OPENING':    Entry( default={'ngerman': r'Sehr geehrte Damen und Herren,'},
-        description='The opening phrase'),
-    'CLOSING':    Entry( default={
-        'ngerman': r'Mit freundlichen Gr\"u\ss{}en',
-        'english':'Best regards,'},
-        description='The closing phrase'),
     'ENCL':       Entry(optional=True, default='',
         description='List additional attachments'),
     'DENCL':      Entry(optional=True, default='',
@@ -218,7 +218,7 @@ flags = {
   'NOBACKADDRESS':   Entry(False, default={True:"off",   False:"on"},
       description='Don\'t print a backaddress within the address window.'),
   'REFERENCESRIGHT': Entry(False, default={True:references_right,  False:''},
-      description='Use a wide reference line.'),
+      description='Move the references into a block on the right.'),
   'REFLINEWIDE':     Entry(False, default={True:'wide',  False:'narrow'},
       description='Use a wide reference line.')
 }

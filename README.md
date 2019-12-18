@@ -268,7 +268,7 @@ english
 # Don't print a backaddress within the address window.
 # ! NOBACKADDRESS
 
-# Use a wide reference line.
+# Move the references into a block on the right.
 # ! REFERENCESRIGHT
 
 # Use a wide reference line.
