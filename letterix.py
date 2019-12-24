@@ -203,7 +203,7 @@ content = {
         description='List of recipients getting a copy.'),
     'SPECIALMAIL':Entry(optional=True, default='',
         description='Special notice within the address window.'),
-    'LANGUAGE':   Entry(default='english',
+    'LANGUAGE':   Entry(default='ngerman',
         description='The babel language code, default: ngerman')
     }
 
