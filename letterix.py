@@ -36,6 +36,7 @@ latex_source = r'''\documentclass[%
 \usepackage[%
     autostyle=true, %
     csdisplay=true, %
+    threshold=1,    %
     ]{csquotes}
 \usepackage{eurosym}
 \usepackage{ragged2e}
