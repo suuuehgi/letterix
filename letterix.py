@@ -12,12 +12,11 @@ from subprocess import Popen, PIPE, STDOUT, run
 
 latex_source = r'''\documentclass[%
         backaddress=<NOBACKADDRESS>,%%         backaddress within window
-        % TODO
+        DIV=<DIV>,%
         fromalign=<FROMRIGHT>,%
         firsthead=<NOFIRSTHEAD>,%
         foldmarks=<NOFOLDMARKS>,%
         foldmarks=H,%
-        % TODO
         fromphone=<FROMPHONE_TRIG>,%
         frommobilephone=<FROMMOBILE_TRIG>,%
         fromemail=<FROMEMAIL_TRIG>,%
@@ -192,6 +191,8 @@ content = {
         description='Complete address of the sender, default: Everything but the frist line of SENDER'),
     'PREAMBLE':   Entry(optional=True, default='',
         description='Optional content for the LaTeX preamble.'),
+    'DIV':        Entry(optional=True, default=r'calc',
+        description='String to be used as scrlttr2 DIV argument (see p. 39 of the KOMA manual)\npossible: "areaset", "calc", "classic", "current", "default", "last", a number\ndefault: calc'),
     'ENCL':       Entry(optional=True, default='',
         description='List additional attachments'),
     'DENCL':      Entry(optional=True, default='',
