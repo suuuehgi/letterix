@@ -121,14 +121,17 @@ path_config = Path("~/.config/letterix.conf").expanduser()
 class Entry:
   def __init__(self,
                content=None,
+               allowed=None,
                default=None,
                optional=None,
                description=None
               ):
+    self.allowed     = False
     self.default     = False
     self.description = False
     self.optional    = False
     self.content     = []
+    if allowed      is not None: self.allowed  = allowed
     if content      is not None: self.content  = content
     if default      is not None: self.default  = default
     if description  is not None: self.description  = description
@@ -191,8 +194,8 @@ content = {
         description='Complete address of the sender, default: Everything but the frist line of SENDER'),
     'PREAMBLE':   Entry(optional=True, default='',
         description='Optional content for the LaTeX preamble.'),
-    'DIV':        Entry(optional=True, default=r'calc',
-        description='String to be used as scrlttr2 DIV argument (see p. 39 of the KOMA manual)\npossible: "areaset", "calc", "classic", "current", "default", "last", a number\ndefault: calc'),
+    'DIV':        Entry(optional=True, default=r'default', allowed=["areaset", "calc", "classic", "current", "default", int],
+        description='String to be used as scrlttr2 DIV argument (see p. 39 of the KOMA manual)\npossible: "areaset", "calc", "classic", "current", "default", "last", a number\ndefault: default'),
     'ENCL':       Entry(optional=True, default='',
         description='List additional attachments'),
     'DENCL':      Entry(optional=True, default='',
@@ -355,7 +358,37 @@ def parse_infile(infile, content, flags):
 
       # ... that is here.
       else:
-        content[curr_section].content.append(line)
+
+        # If there is a restriction to allowed content ..
+        if (allowed := content[curr_section].allowed) is not False:
+
+          # .. and it's directly listed as allowed
+          if line in allowed:
+            content[curr_section].content.append(line)
+
+          # .. or allowed is a generic type, like int
+          else:
+
+            for typ in [ i for i in allowed if type(i) == type ]:
+
+              # Accept first matching type.
+              # Minor TODO: This is ambiguous (example: [int, float, str] on "5")
+              try:
+                # Just check conversion -- str repr. is needed anyway
+                typ(line)
+                content[curr_section].content.append(line)
+                break
+
+              except ValueError:
+                pass
+
+          if content[curr_section].content == []:
+            raise ValueError('"{}" not in allowed list "{}"'.format( line, ", ".join(allowed) ))
+
+
+
+        else:
+          content[curr_section].content.append(line)
 
   return content, flags
 
