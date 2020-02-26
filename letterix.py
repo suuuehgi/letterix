@@ -28,6 +28,7 @@ latex_source = r'''\documentclass[%
          ]{scrlttr2}
 \usepackage{microtype}
 \usepackage[<LANGUAGE>]{babel}
+\usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage[useregional]{datetime2}
 \usepackage{blindtext}
