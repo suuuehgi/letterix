@@ -1,4 +1,4 @@
-#!/usr/bin/python3.8
+#!/usr/bin/python3
 #encoding=utf8
 
 # TODO: References
@@ -39,6 +39,7 @@ latex_source = r'''\documentclass[%
     threshold=1,    %
     ]{csquotes}
 \usepackage{eurosym}
+\usepackage{enumitem}
 \usepackage{ragged2e}
 \usepackage{graphicx}
 \usepackage{hyperref}
@@ -57,6 +58,70 @@ latex_source = r'''\documentclass[%
 \renewcommand\mkblockquote[4]{\leavevmode\llap{\openautoquote\csq@eqgroup}\csq@bqgroup\advance\csq@qlevel\@ne#1#2#3\closeautoquote#4}
 \makeatother
 %
+% Provides section, subsection, subsubsection and paragraph
+%
+\makeatletter
+\newcounter{section}
+\newcounter{subsection}[section]
+\newcounter{subsubsection}[subsection]
+\newcounter{paragraph}[subsubsection]
+\renewcommand*{\thesection}{\Alph{section}.}
+\renewcommand*{\thesubsection}{\Roman{subsection}.}
+\renewcommand*{\thesubsubsection}{\arabic{subsubsection}.}
+\renewcommand*{\theparagraph}{\alph{paragraph})}
+\renewcommand*{\p@subsection}{\thesection}
+\renewcommand*{\p@subsubsection}{\p@subsection\thesubsection}
+\renewcommand*{\p@paragraph}{\p@subsubsection\thesubsubsection}
+\newcommand*\addsec{\secdef\@addsec\@saddsec}
+\newcommand*{\@addsec}{}
+\def\@addsec[#1]#2{\section*{#2}\addcontentsline{toc}{section}{#1}
+  \if@twoside \@mkboth{#1}{}\else \@mkboth{#1}{#1}\fi}
+\newcommand*{\@saddsec}[1]{\section*{#1}\@mkboth{}{}}
+\let\size@section\normalsize
+\let\size@subsection\normalsize
+\let\size@subsubsection\normalsize
+\let\size@paragraph\normalsize
+\newcommand*{\scr@fnt@section}{\size@section}
+\newcommand*{\scr@fnt@subsection}{\size@subsection}
+\newcommand*{\scr@fnt@subsubsection}{\size@subsubsection}
+\newcommand*{\scr@fnt@paragraph}{\size@paragraph}
+\newkomafont{minisec}{}
+\newcommand*\sectfont{\normalcolor\sffamily\bfseries}
+\newcommand*{\scr@fnt@disposition}{\sectfont}
+\aliaskomafont{sectioning}{disposition}
+\setcounter{secnumdepth}{4}
+\newcommand\section{\@startsection{section}{1}{\z@}%
+  {-3.5ex \@plus -1ex \@minus -.2ex}%
+  {2.3ex \@plus.2ex}%
+  {\setlength{\parfillskip}{\z@ \@plus 1fil}%
+    \raggedsection\normalfont\usekomafont{disposition}\nobreak
+    \usekomafont{section}\nobreak}}
+\newcommand\subsection{\@startsection{subsection}{2}{\z@}%
+  {-3.25ex\@plus -1ex \@minus -.2ex}%
+  {1.5ex \@plus .2ex}%
+  {\setlength{\parfillskip}{\z@ \@plus 1fil}%
+    \raggedsection\normalfont\usekomafont{disposition}\nobreak
+    \usekomafont{subsection}\nobreak}}
+\newcommand\subsubsection{\@startsection{subsubsection}{3}{\z@}%
+  {-3.25ex\@plus -1ex \@minus -.2ex}%
+  {1.5ex \@plus .2ex}%
+  {\setlength{\parfillskip}{\z@ \@plus 1fil}%
+    \raggedsection\normalfont\usekomafont{disposition}\nobreak
+    \usekomafont{subsubsection}\nobreak}}
+\newcommand\paragraph{\@startsection{paragraph}{4}{\z@}%
+  {3.25ex \@plus1ex \@minus.2ex}%
+  {-1em}%
+  {\setlength{\parfillskip}{\z@ \@plus 1fil}%
+    \raggedsection\normalfont\usekomafont{disposition}\nobreak
+    \usekomafont{paragraph}\nobreak}}
+\newcommand\minisec[1]{\@afterindentfalse \vskip 1.5ex
+  {\parindent \z@
+    \raggedsection\normalfont\usekomafont{disposition}\nobreak%
+    \usekomafont{minisec}#1\par\nobreak}\nobreak
+  \@afterheading}
+\let\raggedsection\raggedright
+\makeatother
+
 <PREAMBLE>
 <REFERENCESRIGHT>
 %
@@ -72,11 +137,12 @@ latex_source = r'''\documentclass[%
   \setkomavar{fromemail}<DFROMEMAIL>{<FROMEMAIL>}
   \setkomavar{fromfax}<DFROMFAX>{<FROMFAX>}
   \setkomavar{fromurl}<DFROMURL>{<FROMURL>}
+  \setkomavar{frombank}<DFROMBANK>{<FROMBANK>}
   \urlstyle{same}
   \setkomavar{backaddressseparator}{ - }
   \setkomavar{specialmail}{<SPECIALMAIL>}
   %
-  \setkomavar{date}{<DATE>}
+  \setkomavar{date}<DDATE>{<DATE>}
   \setkomavar{yourref}[<REF0K>]{<REF0V>}
   \setkomavar{yourmail}[<REF1K>]{<REF1V>}
   \setkomavar{myref}[<REF2K>]{<REF2V>}
@@ -87,13 +153,16 @@ latex_source = r'''\documentclass[%
   \setkomavar{subject}{<SUBJECT>}
   %
   <SIGNATURE>
-  \setplength{sigbeforevskip}{4\baselineskip}
+  \setplength{sigbeforevskip}{<SIGSKIP>}
   <DENCL>
   <DCC>
   %
+  <FIRSTFOOTVPOS>
+  <FIRSTFOOT>
+  %
   \begin{letter}{<RECIPIENT>}
   \opening{<OPENING>}
-  \noindent <CONTENT>
+  \noindent <CONTENT>\vskip\baselineskip
   \closing{<CLOSING>}
   \ps{<PS>}
   <ENCL>
@@ -103,8 +172,8 @@ latex_source = r'''\documentclass[%
 
 references_right = r'''\makeatletter
 \@setplength{refvpos}{\useplength{toaddrvpos}}
-\@setplength{refhpos}{\paperwidth-14em}
-\@setplength{refwidth}{3cm}
+\@setplength{refhpos}{\paperwidth-<REFERENCESRIGHTHPOS>}
+\@setplength{refwidth}{<REFERENCESRIGHTWIDTH>}
 \@setplength{refaftervskip}{\useplength{toaddrvpos}-2\baselineskip}
 \makeatother'''
 
@@ -162,13 +231,21 @@ content = {
     'REFERENCES': Entry(optional=True, default='',
         description='Up to five references, separated by {s}\nE.g. "Your reference{s}12345"'.format(s=char_cfg_kvseparator)),
     'DATE':       Entry(optional=True, default=r'\today',
-        description='String to be used as date, default: \\today'),
+        description='String to be used as date.'),
+    'DDATE':   Entry(optional=True, default='',
+        description='Description to be used for DATE, you can use the keyword "empty"'),
     'SIGNATURE':  Entry(optional=True, default='',
-        description='Explanation of the signature, default: Frist line of SENDER'),
+        description='Explanation of the signature\ndefault: Frist line of SENDER'),
+    'SIGSKIP':    Entry(optional=True, default=r'4\baselineskip',
+        description='Distance between CLOSING and SIGNATURE.'),
     'TITLE':      Entry(optional=True, default='',
         description='Additional boldface title.'),
+    'FIRSTFOOT':  Entry(optional=True, default='',
+        description='Content of the footer of the first page'),
+    'FIRSTFOOTVPOS': Entry(optional=True, default='',
+        description='Vertical position of the footer of the first page measured from page top'),
     'FROMNAME':   Entry(optional=True,
-        description='Complete name of the sender, default: Frist line of SENDER'),
+        description='Complete name of the sender\ndefault: Frist line of SENDER'),
     'FROMEMAIL':   Entry(optional=True, default='',
         description='E-Mail addresse of the sender'),
     'DFROMEMAIL':  Entry(optional=True, default='',
@@ -181,6 +258,10 @@ content = {
         description='Mobile phone number of the sender'),
     'DFROMMOBILE':Entry(optional=True, default='',
         description='Description to be used for FROMMOBILE, you can use the keyword "empty"'),
+    'FROMBANK':    Entry(optional=True, default='',
+        description='Bank account details'),
+    'DFROMBANK':   Entry(optional=True, default='',
+        description='Description to be used for FROMBANK, you can use the keyword "empty"'),
     'FROMFAX':    Entry(optional=True, default='',
         description='Fax number of the sender'),
     'DFROMFAX':   Entry(optional=True, default='',
@@ -190,13 +271,13 @@ content = {
     'DFROMURL':   Entry(optional=True, default='',
         description='Description to be used for FROMURL, you can use the keyword "empty"'),
     'FROMNAME':   Entry(optional=True,
-        description='Complete name of the sender, default: Frist line of SENDER'),
+        description='Complete name of the sender\ndefault: Frist line of SENDER'),
     'FROMADDRESS':Entry(optional=True,
-        description='Complete address of the sender, default: Everything but the frist line of SENDER'),
+        description='Complete address of the sender\ndefault: Everything but the frist line of SENDER'),
     'PREAMBLE':   Entry(optional=True, default='',
         description='Optional content for the LaTeX preamble.'),
-    'DIV':        Entry(optional=True, default=r'default', allowed=["areaset", "calc", "classic", "current", "default", int],
-        description='String to be used as scrlttr2 DIV argument (see p. 39 of the KOMA manual)\npossible: "areaset", "calc", "classic", "current", "default", "last", a number\ndefault: default'),
+    'DIV':        Entry(optional=True, default='default', allowed=["areaset", "calc", "classic", "current", "default", int],
+        description='String to be used as scrlttr2 DIV argument (see p. 39 of the KOMA manual)\npossible: "areaset", "calc", "classic", "current", "default", "last", a number.'),
     'ENCL':       Entry(optional=True, default='',
         description='List additional attachments'),
     'DENCL':      Entry(optional=True, default='',
@@ -207,10 +288,14 @@ content = {
         description='Description to be used for CC'),
     'CC':         Entry(optional=True, default='',
         description='List of recipients getting a copy.'),
+    'REFERENCESRIGHTWIDTH': Entry(optional=True, default='3cm',
+        description='Width of the references block (if on the right).'),
+    'REFERENCESRIGHTHPOS': Entry(optional=True, default='14em',
+        description='Distance of the references block (if on the right) from the right page margin.'),
     'SPECIALMAIL':Entry(optional=True, default='',
         description='Special notice within the address window.'),
     'LANGUAGE':   Entry(default='ngerman',
-        description='The babel language code, default: ngerman')
+        description='The babel language code.')
     }
 
 # Default is always False
@@ -462,7 +547,7 @@ def fill_source(source=latex_source, content=content, flags=flags):
             source = source.replace( '<REF{}K>'.format(iii), content['REFERENCES'].default )
             source = source.replace( '<REF{}V>'.format(iii), content['REFERENCES'].default )
 
-      elif key in ['FROMFAX', 'FROMEMAIL', 'FROMMOBILE', 'FROMPHONE', 'FROMURL']:
+      elif key in ['FROMFAX', 'FROMEMAIL', 'FROMMOBILE', 'FROMPHONE', 'FROMURL', 'FROMBANK']:
         source = source.replace( '<{}_TRIG>'.format(key), 'on' )
 
         if key == 'FROMEMAIL':
@@ -470,6 +555,10 @@ def fill_source(source=latex_source, content=content, flags=flags):
           source = source.replace( '<{}>'.format(key),
             '\href{{mailto:{mail}}}{{{mail}}}'.format( mail=r'\\'.join(content[key].content) )
             )
+
+        elif key == 'FROMBANK':
+
+          source = source.replace( '<{}>'.format(key), r'\\'.join(content[key].content) )
 
         elif key == 'FROMURL':
 
@@ -486,12 +575,26 @@ def fill_source(source=latex_source, content=content, flags=flags):
         else:
           source = source.replace( '<{}>'.format(key), r'\\'.join(content[key].content) )
 
-      elif key in ['DFROMFAX', 'DFROMEMAIL', 'DFROMMOBILE', 'DFROMPHONE', 'DFROMURL']:
+      elif key in ['DFROMFAX', 'DFROMEMAIL', 'DFROMMOBILE', 'DFROMPHONE', 'DFROMURL', 'DFROMBANK']:
 
         if content[key].content[0] == 'empty':
           source = source.replace( '<{}>'.format(key), '[]' )
         else:
           source = source.replace( '<{}>'.format(key), '[' + r'\\'.join(content[key].content) + ']' )
+
+      elif key == 'DDATE':
+
+        source = source.replace( '<{}>'.format(key), '[' + r'\\'.join(content[key].content) + ']' )
+
+      elif key == 'FIRSTFOOT':
+
+        source = source.replace( '<{}>'.format(key), r'\setkomavar{firstfoot}{<FIRSTFOOT>}' )
+        source = source.replace( '<{}>'.format(key), '\n'.join(content[key].content) )
+
+      elif key == 'FIRSTFOOTVPOS':
+
+        source = source.replace( '<{}>'.format(key), r'\setplength{firstfootvpos}{<FIRSTFOOTVPOS>}' )
+        source = source.replace( '<{}>'.format(key), r'\\'.join(content[key].content) )
 
       elif key == 'SIGNATURE':
 
@@ -517,6 +620,11 @@ def fill_source(source=latex_source, content=content, flags=flags):
 
         source = source.replace( '<{}>'.format(key), r'\encl{<ENCL>}' )
         source = source.replace( '<{}>'.format(key), r'\\'.join(content[key].content) )
+
+      elif key in ['REFERENCESRIGHTWIDTH', 'REFERENCESRIGHTHPOS']:
+
+        g = (g := flags['REFERENCESRIGHT'].default[True]).replace( '<{}>'.format(key), content[key].content[0] )
+        flags['REFERENCESRIGHT'].default[True] = g
 
       elif key in ['PREAMBLE', 'CONTENT']:
 
@@ -578,7 +686,14 @@ def fill_source(source=latex_source, content=content, flags=flags):
           if key in ['FROMFAX', 'FROMEMAIL', 'FROMMOBILE', 'FROMPHONE', 'FROMURL']:
             source = source.replace( '<{}_TRIG>'.format(key), 'off' )
 
-          source = source.replace( '<{}>'.format(key), default_str )
+          if key in ['REFERENCESRIGHTWIDTH', 'REFERENCESRIGHTHPOS']:
+
+            g = (g := flags['REFERENCESRIGHT'].default[True]).replace( '<{}>'.format(key), default_str )
+            flags['REFERENCESRIGHT'].default[True] = g
+
+          else:
+
+            source = source.replace( '<{}>'.format(key), default_str )
 
   for flag, value in flags.items():
     source = source.replace( '<{}>'.format(flag), r'{}'.format(value.default[value.content]) )
@@ -630,6 +745,13 @@ def compile(source, file_out, overwrite=p.overwrite, show_log=False):
     # Write to source file
     with Path(tmpdir).joinpath('source.tex').open('w') as file_source:
       file_source.writelines(source)
+
+    # Add lco files present in main folder
+    lcos = [ f for f in p.infile.parent.iterdir() if f.suffix == ".lco" ]
+
+    for lco in lcos:
+      verbose('Found {}, copied to {}.'.format(lco, Path(tmpdir)))
+      shutil.copy(lco, Path(tmpdir))
 
     # Compile
     log = Popen([
@@ -741,6 +863,8 @@ def generate_stdout(config, section, content=content, flags=flags, verbosity=p.v
     if value.description:
       for d in value.description.split('\n'):
         print(char_comment, d)
+      if value.default not in ['', False]:
+        print(char_comment, "default: {}".format(value.default))
 
     # Comment out optional and undefined headers
     if value.is_optional() and not value.is_defined():
